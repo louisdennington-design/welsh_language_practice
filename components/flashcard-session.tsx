@@ -9,13 +9,64 @@ type SessionWord = Pick<Database['public']['Tables']['words']['Row'], 'english' 
 
 type FlashcardSessionProps = {
   initialUser: Pick<User, 'id'> | null;
+  isUnlimited: boolean;
+  sessionLabel: string;
   words: SessionWord[];
 };
 
 type UserProgressInsert = Database['public']['Tables']['user_progress']['Insert'];
-type UserProgressRow = Database['public']['Tables']['user_progress']['Row'];
+type UserProgressStats = Pick<
+  Database['public']['Tables']['user_progress']['Row'],
+  'easiness_factor' | 'interval' | 'repetitions' | 'review_count'
+>;
 
-export function FlashcardSession({ initialUser, words }: FlashcardSessionProps) {
+function addDays(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function roundToTwoDecimals(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function getNextProgress(existingProgress: UserProgressStats | null, isCorrect: boolean, reviewedAt: Date) {
+  const previousEasinessFactor = existingProgress?.easiness_factor ?? 2.5;
+  const previousInterval = existingProgress?.interval ?? 0;
+  const previousRepetitions = existingProgress?.repetitions ?? 0;
+  const previousReviewCount = existingProgress?.review_count ?? 0;
+
+  if (!isCorrect) {
+    const easinessFactor = Math.max(1.3, roundToTwoDecimals(previousEasinessFactor - 0.1));
+
+    return {
+      dueDate: addDays(reviewedAt, 1).toISOString().slice(0, 10),
+      easinessFactor,
+      interval: 1,
+      repetitions: 0,
+      reviewCount: previousReviewCount + 1,
+      status: 'failed' as const,
+    };
+  }
+
+  const repetitions = previousRepetitions + 1;
+  let interval = 1;
+
+  if (repetitions === 2) {
+    interval = 6;
+  } else if (repetitions > 2) {
+    interval = Math.max(1, Math.round(previousInterval * previousEasinessFactor));
+  }
+
+  return {
+    dueDate: addDays(reviewedAt, interval).toISOString().slice(0, 10),
+    easinessFactor: roundToTwoDecimals(previousEasinessFactor + 0.1),
+    interval,
+    repetitions,
+    reviewCount: previousReviewCount + 1,
+    status: 'learning' as const,
+  };
+}
+
+export function FlashcardSession({ initialUser, isUnlimited, sessionLabel, words }: FlashcardSessionProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [incorrectCount, setIncorrectCount] = useState(0);
@@ -27,18 +78,6 @@ export function FlashcardSession({ initialUser, words }: FlashcardSessionProps) 
 
   const currentWord = words[currentIndex];
   const isComplete = currentIndex >= words.length;
-
-  function getNextIntervalDays(existingProgress: Pick<UserProgressRow, 'correct' | 'review_interval_days'> | null, isCorrect: boolean) {
-    if (!isCorrect) {
-      return 1;
-    }
-
-    if (!existingProgress?.correct) {
-      return 1;
-    }
-
-    return Math.max(existingProgress.review_interval_days, 1) * 2;
-  }
 
   async function saveProgress(wordId: string, isCorrect: boolean) {
     const activeUser =
@@ -54,11 +93,12 @@ export function FlashcardSession({ initialUser, words }: FlashcardSessionProps) 
       return;
     }
 
-    const now = new Date().toISOString();
+    const reviewedAt = new Date();
+    const reviewedAtIso = reviewedAt.toISOString();
     const { data: existingProgress, error: existingProgressError } = await supabase
       .schema('public')
       .from('user_progress')
-      .select('correct, review_interval_days')
+      .select('easiness_factor, interval, repetitions, review_count')
       .eq('user_id', activeUser.id)
       .eq('word_id', wordId)
       .maybeSingle();
@@ -67,20 +107,48 @@ export function FlashcardSession({ initialUser, words }: FlashcardSessionProps) 
       throw existingProgressError;
     }
 
-    const reviewIntervalDays = getNextIntervalDays(existingProgress, isCorrect);
-    const nextDueAt = new Date(Date.now() + reviewIntervalDays * 24 * 60 * 60 * 1000).toISOString();
+    const nextProgress = getNextProgress(existingProgress, isCorrect, reviewedAt);
     const payload: UserProgressInsert = {
       user_id: activeUser.id,
       word_id: wordId,
-      correct: isCorrect,
-      last_reviewed_at: now,
-      last_reviewed: now,
-      next_due_at: nextDueAt,
-      review_interval_days: reviewIntervalDays,
+      due_date: nextProgress.dueDate,
+      easiness_factor: nextProgress.easinessFactor,
+      interval: nextProgress.interval,
+      last_reviewed: reviewedAtIso,
+      repetitions: nextProgress.repetitions,
+      review_count: nextProgress.reviewCount,
+      status: nextProgress.status,
     };
     const { error } = await supabase.schema('public').from('user_progress').upsert(payload, {
       onConflict: 'user_id,word_id',
     });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function completeSession() {
+    const activeUser =
+      user ??
+      (await supabase.auth.getUser().then(({ data }) => {
+        const nextUser = data.user ? { id: data.user.id } : null;
+        setUser(nextUser);
+        return nextUser;
+      }));
+
+    if (!activeUser) {
+      return;
+    }
+
+    const lastSessionDate = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.schema('public').from('user_stats').upsert(
+      {
+        user_id: activeUser.id,
+        last_session_date: lastSessionDate,
+      },
+      { onConflict: 'user_id' },
+    );
 
     if (error) {
       throw error;
@@ -97,6 +165,9 @@ export function FlashcardSession({ initialUser, words }: FlashcardSessionProps) 
 
     try {
       await saveProgress(currentWord.id, isCorrect);
+      if (currentIndex === words.length - 1) {
+        await completeSession();
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to save progress.';
       setSaveError(message);
@@ -136,8 +207,9 @@ export function FlashcardSession({ initialUser, words }: FlashcardSessionProps) 
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <p className="text-sm text-slate-600">
-        Card {currentIndex + 1} of {words.length}
+      <p className="text-sm text-slate-600">Session length: {sessionLabel}</p>
+      <p className="mt-1 text-sm text-slate-600">
+        Card {currentIndex + 1} of {isUnlimited ? `${words.length}` : words.length}
       </p>
       <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-6 text-center">
         <p className="text-2xl font-semibold">{currentWord.welsh}</p>
