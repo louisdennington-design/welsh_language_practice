@@ -29,11 +29,13 @@ export interface Database {
       };
       user_progress: {
         Row: {
+          correct: boolean | null;
           created_at: string;
           due_date: string | null;
           easiness_factor: number;
           interval: number;
           last_reviewed: string | null;
+          last_reviewed_at: string | null;
           repetitions: number;
           review_count: number;
           status: Database['public']['Enums']['progress_status'];
@@ -42,11 +44,13 @@ export interface Database {
           word_id: string;
         };
         Insert: {
+          correct?: boolean | null;
           created_at?: string;
           due_date?: string | null;
           easiness_factor?: number;
           interval?: number;
           last_reviewed?: string | null;
+          last_reviewed_at?: string | null;
           repetitions?: number;
           review_count?: number;
           status?: Database['public']['Enums']['progress_status'];
@@ -55,11 +59,13 @@ export interface Database {
           word_id: string;
         };
         Update: {
+          correct?: boolean | null;
           created_at?: string;
           due_date?: string | null;
           easiness_factor?: number;
           interval?: number;
           last_reviewed?: string | null;
+          last_reviewed_at?: string | null;
           repetitions?: number;
           review_count?: number;
           status?: Database['public']['Enums']['progress_status'];

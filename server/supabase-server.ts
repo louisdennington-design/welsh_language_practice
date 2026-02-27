@@ -6,7 +6,6 @@ import { getSupabaseAnonKey, getSupabaseUrl } from '@/server/supabase-env';
 
 export function createSupabaseServerClient() {
   const cookieStore = cookies();
-
   return createServerClient<Database>(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
       getAll() {
