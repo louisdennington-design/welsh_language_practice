@@ -29,6 +29,63 @@ Copy `.env.example` to `.env.local` and set:
    npm run dev
    ```
 
+## Viewing the UI
+Once `npm run dev` is running, open:
+
+- `http://localhost:3000/`
+  This shows the home page, magic-link auth panel, and the entry point into flashcards.
+- `http://localhost:3000/flashcards`
+  This shows the flashcard session setup screen with:
+  - session length selector
+  - rarity slider
+  - linguistic-type filters
+- After starting a session on `/flashcards`, the card UI shows:
+  - tap to flip
+  - swipe right to keep learning
+  - swipe left to mark learned
+
+You can see UI changes as soon as the dev server recompiles. In practice that means:
+
+- I change code here
+- you refresh the browser on `localhost:3000`
+- Next.js hot reload usually updates automatically for component/style changes
+
+## Supabase auth setup for local testing
+To make magic-link sign-in work locally, configure your Supabase project:
+
+1. Open Supabase Dashboard.
+2. Go to `Authentication` -> `URL Configuration`.
+3. Set `Site URL` to:
+   ```text
+   http://localhost:3000
+   ```
+4. Add this redirect URL:
+   ```text
+   http://localhost:3000/auth/callback
+   ```
+5. In `Authentication` -> `Providers` -> `Email`, ensure email auth is enabled.
+
+## How to test the magic-link flow
+1. Start the app with:
+   ```bash
+   npm run dev
+   ```
+2. Open:
+   ```text
+   http://localhost:3000/
+   ```
+3. Enter your email in the sign-in panel and send the magic link.
+4. Open the email from Supabase and click the link.
+5. After the callback completes, refresh should show you as signed in on `/`.
+6. Go to:
+   ```text
+   http://localhost:3000/flashcards
+   ```
+7. Choose a session length and filters, then start a session.
+8. Review a few cards and finish the session.
+
+If auth is working correctly, progress writes and `user_stats.last_session_date` updates will use your real Supabase user session instead of local-only fallback.
+
 ## Database schema and migrations
 Schema migrations live in `supabase/migrations`.
 
