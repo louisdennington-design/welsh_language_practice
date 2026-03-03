@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Welsh Vocabulary Practice</string>
-    <string name="title_activity_main">Welsh Vocabulary Practice</string>
+    <string name="app_name">CymruCards</string>
+    <string name="title_activity_main">CymruCards</string>
     <string name="package_name">com.welshvocab.practice</string>
     <string name="custom_url_scheme">com.welshvocab.practice</string>
 </resources>

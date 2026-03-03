@@ -1,110 +1,78 @@
 import { AuthPanel } from '@/components/auth-panel';
 import { FlashcardSession } from '@/components/flashcard-session';
 import { SessionSetupForm } from '@/components/session-setup-form';
+import type { StackedWord } from '@/lib/card-stack';
+import { shuffleDeterministically } from '@/lib/queue-state';
+import { fetchAllEligibleLexiconRows } from '@/lib/lexicon-server';
+import {
+  getCoreSelectedTypes,
+  getSelectedDuration,
+  getSelectedFrontLanguage,
+  getSelectedRarity,
+  getSelectedThemes,
+  getSelectedTypes,
+  getQueueSize,
+  matchesSelectedThemes,
+  matchesSelectedTypes,
+  matchesRarityWindow,
+  normalizeThemeArray,
+  type CoreLinguisticTypeOption,
+  type DurationOption,
+  type FrontLanguage,
+  type RarityOption,
+  type ThemeOption,
+} from '@/lib/flashcards';
 import { createSupabaseAdminClient } from '@/server/supabase-admin';
 import { createSupabaseServerClient } from '@/server/supabase-server';
 import type { Database } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
 
-const CARDS_PER_MINUTE = 10;
-const DEFAULT_FILTER_TYPES: PartOfSpeechOption[] = ['noun', 'adjective', 'verb_infinitive', 'conjugation', 'phrase'];
-
-type SessionWord = Pick<Database['public']['Tables']['words']['Row'], 'english' | 'id' | 'welsh'>;
-type DurationOption = '1' | '3' | '5' | 'unlimited';
-type PartOfSpeechOption = 'adjective' | 'conjugation' | 'noun' | 'phrase' | 'verb_infinitive';
-type RarityOption = 'common' | 'intermediate' | 'rare';
+type SessionWord = {
+  english_1: string | null;
+  english_2: string | null;
+  english_3: string | null;
+  id: number;
+  linguistic_type: CoreLinguisticTypeOption;
+  themes: ThemeOption[];
+  welsh_frequency: number | null;
+  welsh_lc: string | null;
+};
 type SearchParams = {
   duration?: DurationOption;
+  front?: FrontLanguage;
   rarity?: RarityOption;
+  session?: string;
+  stackIds?: string;
+  themes?: string;
   types?: string;
 };
-type UserProgressSelection = Pick<Database['public']['Tables']['user_progress']['Row'], 'due_date' | 'word_id'>;
-type FilterableWord = Pick<
-  Database['public']['Tables']['words']['Row'],
-  'english' | 'frequency_rank' | 'id' | 'part_of_speech' | 'welsh'
+type FilterableLexiconWord = Pick<
+  Database['public']['Tables']['lexicon']['Row'],
+  'english_1' | 'english_2' | 'english_3' | 'id' | 'spacy_pos_1' | 'welsh_frequency' | 'welsh_lc' | 'wordnet_themes_reduced'
 >;
 
-const SESSION_OPTIONS: Array<{ estimatedCards: number | null; label: string; value: DurationOption }> = [
-  { estimatedCards: 10, label: '1 minute', value: '1' },
-  { estimatedCards: 30, label: '3 minutes', value: '3' },
-  { estimatedCards: 50, label: '5 minutes', value: '5' },
-  { estimatedCards: null, label: 'Unlimited', value: 'unlimited' },
-];
-
-function getQueueSize(duration: DurationOption) {
-  if (duration === 'unlimited') {
-    return null;
-  }
-
-  return Number(duration) * CARDS_PER_MINUTE;
-}
-
-function getSelectedTypes(rawTypes: string | undefined) {
-  if (!rawTypes) {
-    return DEFAULT_FILTER_TYPES;
-  }
-
-  const parsedTypes = rawTypes
-    .split(',')
-    .map((type) => type.trim())
-    .filter((type): type is PartOfSpeechOption => DEFAULT_FILTER_TYPES.includes(type as PartOfSpeechOption));
-
-  return parsedTypes.length > 0 ? parsedTypes : DEFAULT_FILTER_TYPES;
-}
-
-function matchesRarity(word: Pick<FilterableWord, 'frequency_rank'>, rarity: RarityOption) {
-  if (word.frequency_rank === null) {
-    return true;
-  }
-
-  if (rarity === 'common') {
-    return word.frequency_rank >= 1 && word.frequency_rank <= 500;
-  }
-
-  if (rarity === 'intermediate') {
-    return word.frequency_rank >= 501 && word.frequency_rank <= 2000;
-  }
-
-  return word.frequency_rank >= 2001;
-}
-
-function applyWordFilters(words: FilterableWord[], rarity: RarityOption, types: PartOfSpeechOption[]) {
-  const allowedTypes = new Set(types);
-
-  return words.filter((word) => allowedTypes.has(word.part_of_speech as PartOfSpeechOption) && matchesRarity(word, rarity));
-}
-
-function buildScheduledWords(
-  allWords: FilterableWord[],
-  progressRows: UserProgressSelection[],
-  limit: number | null,
-  today: string,
+function matchesSetupCriteria(
+  word: Pick<Database['public']['Tables']['lexicon']['Row'], 'spacy_pos_1' | 'welsh_frequency' | 'wordnet_themes_reduced'>,
+  rarity: RarityOption,
+  types: CoreLinguisticTypeOption[],
+  themes: ThemeOption[],
 ) {
-  const progressByWordId = new Map(progressRows.map((row) => [row.word_id, row]));
-  const dueWords = allWords.filter((word) => {
-    const progress = progressByWordId.get(word.id);
+  const pos = word.spacy_pos_1 as CoreLinguisticTypeOption | null;
 
-    if (!progress) {
-      return false;
-    }
+  if (!pos || !matchesSelectedTypes(pos, types)) {
+    return false;
+  }
 
-    return progress.due_date !== null && progress.due_date <= today;
-  });
-  const newWords = allWords.filter((word) => !progressByWordId.has(word.id));
-  const backlogWords = allWords.filter((word) => {
-    const progress = progressByWordId.get(word.id);
+  if (!matchesSelectedThemes(word.wordnet_themes_reduced, themes)) {
+    return false;
+  }
 
-    if (!progress) {
-      return false;
-    }
+  return matchesRarityWindow(pos, word.welsh_frequency, rarity);
+}
 
-    return progress.due_date === null || progress.due_date > today;
-  });
-
-  const orderedWords = [...dueWords, ...newWords, ...backlogWords];
-
-  return limit === null ? orderedWords : orderedWords.slice(0, limit);
+function applyWordFilters(words: FilterableLexiconWord[], rarity: RarityOption, types: CoreLinguisticTypeOption[], themes: ThemeOption[]) {
+  return words.filter((word) => matchesSetupCriteria(word, rarity, types, themes));
 }
 
 export default async function FlashcardsPage({ searchParams }: { searchParams?: SearchParams }) {
@@ -113,79 +81,142 @@ export default async function FlashcardsPage({ searchParams }: { searchParams?: 
   const {
     data: { user },
   } = await supabaseServer.auth.getUser();
-  const selectedDuration = searchParams?.duration;
-  const selectedRarity = searchParams?.rarity ?? 'common';
+  const selectedDuration = getSelectedDuration(searchParams?.duration);
+  const selectedFrontLanguage = getSelectedFrontLanguage(searchParams?.front);
+  const selectedRarity = getSelectedRarity(searchParams?.rarity);
+  const selectedThemes = getSelectedThemes(searchParams?.themes);
+  const sessionKey = searchParams?.session ?? null;
   const selectedTypes = getSelectedTypes(searchParams?.types);
+  const selectedCoreTypes = getCoreSelectedTypes(selectedTypes);
+  const requestedStackIds = (searchParams?.stackIds ?? '')
+    .split(',')
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
 
-  if (!selectedDuration) {
+  const allLexiconRows = await fetchAllEligibleLexiconRows<FilterableLexiconWord>(
+    supabaseServer,
+    'id, welsh_lc, welsh_frequency, english_1, english_2, english_3, spacy_pos_1, wordnet_themes_reduced',
+  );
+
+  let initialStackWords: StackedWord[] = [];
+
+  if (!sessionKey) {
+    if (user) {
+      const { data: stackedRows } = await supabaseAdmin
+        .from('user_card_state')
+        .select('word_id')
+        .eq('user_id', user.id)
+        .eq('in_stack', true)
+        .eq('status', 'active');
+
+      const stackIds = new Set((stackedRows ?? []).map((row) => row.word_id));
+      initialStackWords = allLexiconRows
+        .filter((word) => stackIds.has(word.id))
+        .map((word) => ({
+          english: word.english_1 ?? '',
+          english_2: word.english_2,
+          english_3: word.english_3,
+          frequencyRank: word.welsh_frequency,
+          id: word.id,
+          linguisticType: word.spacy_pos_1 as CoreLinguisticTypeOption,
+          welsh: word.welsh_lc ?? '',
+        }));
+    }
+
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 p-6">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold">Flashcard session</h1>
-          <p className="text-sm text-slate-600">
-            Sign in, choose a queue, and begin the text-only flashcard review.
-          </p>
-        </div>
+      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-5 py-8">
+        <SessionSetupForm
+          availableCards={allLexiconRows
+            .filter((word) => {
+              const pos = word.spacy_pos_1 as CoreLinguisticTypeOption | null;
+              return Boolean(pos);
+            })
+            .map((word) => ({
+              frequency: word.welsh_frequency,
+              id: word.id,
+              linguistic_type: word.spacy_pos_1 as CoreLinguisticTypeOption,
+              themes: normalizeThemeArray(word.wordnet_themes_reduced),
+            }))}
+          initialStackWords={initialStackWords}
+          initialFrontLanguage={selectedFrontLanguage}
+          initialRarity={selectedRarity}
+          initialThemes={selectedThemes}
+          initialTypes={selectedTypes}
+        />
         <AuthPanel initialUserEmail={user?.email ?? null} redirectPath="/flashcards" />
-        <SessionSetupForm initialRarity={selectedRarity} initialTypes={selectedTypes} />
       </main>
     );
   }
 
   const queueSize = getQueueSize(selectedDuration);
-  const sessionLabel = SESSION_OPTIONS.find((option) => option.value === selectedDuration)?.label ?? 'Custom';
   let words: SessionWord[] = [];
+  let stackIds = new Set<number>(requestedStackIds);
 
   if (user) {
-    const [{ data: allWords, error: wordsError }, { data: progressRows, error: progressError }] =
-      await Promise.all([
-        supabaseAdmin.from('words').select('id, welsh, english, frequency_rank, part_of_speech'),
-        supabaseAdmin
-          .from('user_progress')
-          .select('word_id, due_date')
-          .eq('user_id', user.id),
-      ]);
+    const { data: cardStateRows, error: cardStateError } = await supabaseAdmin
+      .from('user_card_state')
+      .select('word_id, status, in_stack')
+      .eq('user_id', user.id);
 
-    if (wordsError) {
-      throw new Error(`Unable to load flashcards: ${wordsError.message}`);
+    if (cardStateError) {
+      throw new Error(`Unable to load card state: ${cardStateError.message}`);
     }
 
-    if (progressError) {
-      throw new Error(`Unable to load review progress: ${progressError.message}`);
+    const removedWordIds = new Set((cardStateRows ?? []).filter((row) => row.status === 'removed').map((row) => row.word_id));
+    stackIds = new Set((cardStateRows ?? []).filter((row) => row.in_stack && row.status !== 'removed').map((row) => row.word_id));
+    const filteredWords = applyWordFilters(allLexiconRows, selectedRarity, selectedCoreTypes, selectedThemes).filter(
+      (word) => !removedWordIds.has(word.id),
+    );
+    const stackWords = allLexiconRows.filter((word) => stackIds.has(word.id) && !removedWordIds.has(word.id));
+    const wordMap = new Map<number, FilterableLexiconWord>();
+
+    filteredWords.forEach((word) => wordMap.set(word.id, word));
+
+    if (selectedTypes.includes('STACK')) {
+      stackWords.forEach((word) => wordMap.set(word.id, word));
     }
 
-    const filteredWords = applyWordFilters(allWords ?? [], selectedRarity, selectedTypes);
-    words = buildScheduledWords(filteredWords, progressRows ?? [], queueSize, new Date().toISOString().slice(0, 10));
-  } else {
-    const { data: fallbackWords, error } = await supabaseAdmin
-      .from('words')
-      .select('id, welsh, english, frequency_rank, part_of_speech')
-      .limit(100);
-
-    if (error) {
-      throw new Error(`Unable to load flashcards: ${error.message}`);
-    }
-
-    const filteredWords = applyWordFilters(fallbackWords ?? [], selectedRarity, selectedTypes);
-    words = filteredWords.slice(0, queueSize ?? filteredWords.length).map((word) => ({
-      english: word.english,
+    const shuffledWords = shuffleDeterministically([...wordMap.values()], `${sessionKey}:${user.id}`);
+    words = (queueSize === null ? shuffledWords : shuffledWords.slice(0, queueSize)).map((word) => ({
+      english_1: word.english_1,
+      english_2: word.english_2,
+      english_3: word.english_3,
       id: word.id,
-      welsh: word.welsh,
+      linguistic_type: word.spacy_pos_1 as CoreLinguisticTypeOption,
+      themes: normalizeThemeArray(word.wordnet_themes_reduced),
+      welsh_frequency: word.welsh_frequency,
+      welsh_lc: word.welsh_lc,
+    }));
+  } else {
+    const filteredWords = applyWordFilters(allLexiconRows, selectedRarity, selectedCoreTypes, selectedThemes);
+    const stackWords = allLexiconRows.filter((word) => stackIds.has(word.id));
+    const wordMap = new Map<number, FilterableLexiconWord>();
+
+    filteredWords.forEach((word) => wordMap.set(word.id, word));
+
+    if (selectedTypes.includes('STACK')) {
+      stackWords.forEach((word) => wordMap.set(word.id, word));
+    }
+
+    const shuffledWords = shuffleDeterministically([...wordMap.values()], sessionKey);
+    words = (queueSize === null ? shuffledWords : shuffledWords.slice(0, queueSize)).map((word) => ({
+      english_1: word.english_1,
+      english_2: word.english_2,
+      english_3: word.english_3,
+      id: word.id,
+      linguistic_type: word.spacy_pos_1 as CoreLinguisticTypeOption,
+      themes: normalizeThemeArray(word.wordnet_themes_reduced),
+      welsh_frequency: word.welsh_frequency,
+      welsh_lc: word.welsh_lc,
     }));
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Flashcard session</h1>
-        <p className="text-sm text-slate-600">
-          Tap to flip, swipe right to keep learning, and swipe left to mark a card learned.
-        </p>
-      </div>
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-5 py-8">
       <FlashcardSession
+        initialFrontLanguage={selectedFrontLanguage}
         initialUser={user ? { id: user.id } : null}
-        isUnlimited={selectedDuration === 'unlimited'}
-        sessionLabel={sessionLabel}
+        sessionKey={sessionKey}
         words={words}
       />
     </main>

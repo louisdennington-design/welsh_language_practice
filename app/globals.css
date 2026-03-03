@@ -4,29 +4,349 @@
 
 :root {
   color-scheme: light;
+  --option-green: #769036;
+  --submit-green: #234812;
+}
+
+html {
+  min-height: 100%;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900;
+  @apply min-h-screen text-slate-900;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)),
+    url('/images/cymraeg-cards-background.png') center center / cover no-repeat fixed;
 }
 
-.flashcard-scene {
-  perspective: 1200px;
+body::before {
+  background:
+    linear-gradient(180deg, rgba(247, 250, 241, 0.52) 0%, rgba(247, 250, 241, 0.2) 28%, rgba(24, 51, 17, 0.24) 100%);
+  content: '';
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: -1;
 }
 
-.flashcard-inner {
-  min-height: 18rem;
+.app-shell {
+  min-height: 100vh;
+  padding-bottom: 6.5rem;
   position: relative;
-  transform-style: preserve-3d;
-  transition: transform 220ms ease;
+  z-index: 1;
 }
 
-.flashcard-face {
-  backface-visibility: hidden;
+.app-shell-content {
+  transition: opacity 180ms ease;
+}
+
+.app-shell-content-hidden {
+  opacity: 0;
+}
+
+.app-shell-content-visible {
+  opacity: 1;
+}
+
+.app-launch-splash {
+  align-items: center;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)),
+    url('/images/cymraeg-cards-background.png') center center / cover no-repeat fixed;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+  transition: opacity 220ms ease;
+  z-index: 50;
+}
+
+.app-launch-splash::before {
+  background:
+    linear-gradient(180deg, rgba(247, 250, 241, 0.52) 0%, rgba(247, 250, 241, 0.2) 28%, rgba(24, 51, 17, 0.24) 100%);
+  content: '';
   inset: 0;
   position: absolute;
 }
 
+.app-launch-splash-fade {
+  opacity: 0;
+}
+
+.app-launch-title {
+  color: white;
+  font-size: clamp(2.5rem, 9vw, 4.5rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  position: relative;
+  text-align: center;
+  z-index: 1;
+}
+
+.app-bottom-nav {
+  align-items: center;
+  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  bottom: 1rem;
+  box-shadow: 0 20px 45px rgba(27, 67, 46, 0.16);
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  left: 50%;
+  max-width: 28rem;
+  padding: 0.5rem;
+  position: fixed;
+  transform: translateX(-50%);
+  width: calc(100% - 1.5rem);
+  z-index: 30;
+}
+
+.app-bottom-nav-link {
+  border-radius: 999px;
+  color: rgb(71 85 105);
+  flex: 1 1 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.85rem 0.75rem;
+  text-align: center;
+}
+
+.app-bottom-nav-link-active {
+  background: var(--option-green);
+  color: white;
+}
+
+.flashcard-stack {
+  min-height: 24rem;
+  position: relative;
+}
+
+.flashcard-shell {
+  inset: 0;
+  position: absolute;
+  transition: transform 320ms ease, opacity 320ms ease;
+}
+
+.flashcard-shell-next {
+  transform: translateY(1rem) scale(0.96);
+}
+
+.flashcard-shell-dragging {
+  transition: none;
+}
+
+.flashcard-shell-swipe-left,
+.flashcard-shell-swipe-right {
+  opacity: 0;
+}
+
+.flashcard-scene {
+  inset: 0;
+  perspective: 1200px;
+  position: absolute;
+}
+
+.flashcard-card {
+  height: 100%;
+  width: 100%;
+}
+
+.flashcard-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 320ms ease;
+}
+
+.flashcard-face {
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: center;
+  padding: 2rem;
+  position: absolute;
+  text-align: center;
+  touch-action: none;
+}
+
 .flashcard-face-back {
   transform: rotateY(180deg);
+}
+
+.revision-stack-button {
+  align-items: center;
+  background: rgba(118, 144, 54, 0.92);
+  border: 2px solid rgba(255, 255, 255, 0.94);
+  border-radius: 999px;
+  color: white;
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 700;
+  height: 2.5rem;
+  justify-content: center;
+  left: 1rem;
+  position: absolute;
+  top: 1rem;
+  width: 2.5rem;
+  z-index: 6;
+}
+
+.revision-stack-button-active {
+  background: rgba(35, 72, 18, 0.98);
+  box-shadow: 0 10px 24px rgba(35, 72, 18, 0.28);
+}
+
+.revision-stack-tooltip {
+  background: rgba(15, 23, 42, 0.86);
+  border-radius: 1rem;
+  color: rgb(209 250 229);
+  left: 1rem;
+  max-width: 14rem;
+  padding: 0.8rem 0.95rem;
+  position: absolute;
+  top: 4.2rem;
+  z-index: 6;
+}
+
+.modal-backdrop {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.25rem;
+  position: fixed;
+  z-index: 40;
+}
+
+.modal-backdrop-strong {
+  background: rgba(55, 65, 81, 0.78);
+}
+
+.intro-demo-card {
+  align-items: center;
+  background: linear-gradient(180deg, #f8faef 0%, #edf3d8 100%);
+  border: 1px solid rgba(118, 144, 54, 0.24);
+  border-radius: 1.25rem;
+  display: flex;
+  height: 7rem;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.intro-demo-flip-card,
+.intro-demo-swing-left,
+.intro-demo-swing-right {
+  align-items: center;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 18px 35px rgba(20, 40, 22, 0.16);
+  color: rgb(15 23 42);
+  display: flex;
+  font-size: 0.95rem;
+  font-weight: 700;
+  height: 4.25rem;
+  justify-content: center;
+  width: 7.5rem;
+}
+
+.intro-demo-flip-card {
+  animation: intro-flip 1.8s ease-in-out infinite;
+}
+
+.intro-demo-swing-left {
+  animation: intro-swing-left 1.8s ease-in-out infinite;
+}
+
+.intro-demo-swing-right {
+  animation: intro-swing-right 1.8s ease-in-out infinite;
+}
+
+.celebration-burst {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  margin-top: 0.5rem;
+  position: relative;
+}
+
+.celebration-burst::before {
+  background:
+    radial-gradient(circle, rgba(254, 240, 138, 0.95) 0%, rgba(254, 240, 138, 0.1) 45%, transparent 72%),
+    conic-gradient(from 0deg, rgba(35, 72, 18, 0.25), rgba(250, 204, 21, 0.55), rgba(118, 144, 54, 0.28), rgba(35, 72, 18, 0.25));
+  border-radius: 999px;
+  content: '';
+  height: 8.5rem;
+  position: absolute;
+  width: 8.5rem;
+  z-index: 0;
+}
+
+.celebration-icon {
+  align-items: center;
+  animation: celebration-pop 520ms ease;
+  border-radius: 999px;
+  display: flex;
+  font-size: 3rem;
+  height: 5.5rem;
+  justify-content: center;
+  position: relative;
+  width: 5.5rem;
+  z-index: 1;
+}
+
+.celebration-icon-dragon {
+  background: rgba(220, 252, 231, 0.92);
+}
+
+@keyframes celebration-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-14deg);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.1) rotate(4deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes intro-flip {
+  0%,
+  100% {
+    transform: rotateY(0deg);
+  }
+
+  50% {
+    transform: rotateY(180deg);
+  }
+}
+
+@keyframes intro-swing-left {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateX(-1.4rem) rotate(-10deg);
+  }
+}
+
+@keyframes intro-swing-right {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateX(1.4rem) rotate(10deg);
+  }
 }

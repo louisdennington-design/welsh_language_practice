@@ -11,6 +11,8 @@ Phase 1 foundation for the Welsh vocabulary flashcards rewrite.
 ## Environment variables
 Copy `.env.example` to `.env.local` and set:
 
+- `NEXT_PUBLIC_SITE_URL`: canonical site URL for auth redirects. Use `http://localhost:3000` locally and your HTTPS domain in staging/production
+- `CAPACITOR_SERVER_URL`: optional hosted URL for the Android WebView. If unset, it falls back to `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: public anon key for browser and server session clients
 - `SUPABASE_SERVICE_ROLE_KEY`: service role key for admin-only scripts such as the legacy import
@@ -33,16 +35,17 @@ Copy `.env.example` to `.env.local` and set:
 Once `npm run dev` is running, open:
 
 - `http://localhost:3000/`
-  This shows the home page, magic-link auth panel, and the entry point into flashcards.
+This redirects into the flashcards setup screen.
 - `http://localhost:3000/flashcards`
   This shows the flashcard session setup screen with:
-  - session length selector
+  - session size selector
   - rarity slider
   - linguistic-type filters
+-  - theme filters
 - After starting a session on `/flashcards`, the card UI shows:
   - tap to flip
-  - swipe right to keep learning
-  - swipe left to mark learned
+  - swipe right to see the card more often
+  - swipe left to see the card less often
 
 You can see UI changes as soon as the dev server recompiles. In practice that means:
 
@@ -50,22 +53,32 @@ You can see UI changes as soon as the dev server recompiles. In practice that me
 - you refresh the browser on `localhost:3000`
 - Next.js hot reload usually updates automatically for component/style changes
 
-## Supabase auth setup for local testing
-To make magic-link sign-in work locally, configure your Supabase project:
+## Supabase auth setup
+To make email/password auth, sign-up confirmation, and reset flows work correctly, configure your Supabase project:
 
 1. Open Supabase Dashboard.
 2. Go to `Authentication` -> `URL Configuration`.
-3. Set `Site URL` to:
+3. Set `Site URL` to your current environment URL. For local development:
    ```text
    http://localhost:3000
    ```
-4. Add this redirect URL:
+4. Add these redirect URLs for the environments you actually use. For local development:
    ```text
    http://localhost:3000/auth/callback
+   http://localhost:3000/auth/reset-password
    ```
 5. In `Authentication` -> `Providers` -> `Email`, ensure email auth is enabled.
 
-## How to test the magic-link flow
+### Staging vs production
+`NEXT_PUBLIC_SITE_URL` should be set per environment:
+
+- local: `http://localhost:3000`
+- staging: your staging HTTPS app URL
+- production: your production HTTPS app URL
+
+The app uses that value when generating Supabase email confirmation and password reset redirect URLs. This matters for Android WebView too, because the hosted URL is what Capacitor will load.
+
+## How to test the auth flow
 1. Start the app with:
    ```bash
    npm run dev
@@ -74,15 +87,16 @@ To make magic-link sign-in work locally, configure your Supabase project:
    ```text
    http://localhost:3000/
    ```
-3. Enter your email in the sign-in panel and send the magic link.
-4. Open the email from Supabase and click the link.
-5. After the callback completes, refresh should show you as signed in on `/`.
-6. Go to:
+3. Create an account or sign in with email and password.
+4. If your Supabase project requires confirmation, open the confirmation email and click the link.
+5. If you test password reset, use the reset form and then open the emailed reset link.
+6. After the callback/reset completes, refresh should show you as signed in on `/flashcards`.
+7. Go to:
    ```text
    http://localhost:3000/flashcards
    ```
-7. Choose a session length and filters, then start a session.
-8. Review a few cards and finish the session.
+8. Choose a session size and filters, then start a session.
+9. Review a few cards and finish the session.
 
 If auth is working correctly, progress writes and `user_stats.last_session_date` updates will use your real Supabase user session instead of local-only fallback.
 
@@ -136,10 +150,9 @@ The app is configured with static export output so the build artifacts are writt
 ## Capacitor Android
 Android platform files live in `android/`, with config in `capacitor.config.ts`.
 
-Build the web bundle and sync it into Android:
+Sync the Android shell:
 
 ```bash
-npm run build:web
 npm run cap:sync:android
 ```
 
@@ -148,6 +161,11 @@ Open the Android project:
 ```bash
 npm run cap:open:android
 ```
+
+The Android shell is configured to load the hosted URL from `CAPACITOR_SERVER_URL` or `NEXT_PUBLIC_SITE_URL`, rather than a bundled static export.
+
+## Mobile deployment
+See [MOBILE_BUILD.md](/workspaces/welsh_language_practice/MOBILE_BUILD.md) for the current Android deployment notes and environment URL requirements.
 
 ## Validation
 Run the standard checks:
@@ -160,3 +178,4 @@ npm run build
 
 ## Legacy app
 The previous Flask implementation remains in `/legacy` for reference-only migration context.
+// test

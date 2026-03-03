@@ -1,0 +1,62 @@
+Licences and Data Sources
+
+This application incorporates lexical data and derived annotations from third-party resources. The original copyright holders retain their rights. The relevant sources and licences are listed below.
+
+SUBTLEX-CY (Welsh Frequency Data)
+
+Welsh frequency values in this database are derived from the SUBTLEX-CY corpus.
+
+SUBTLEX-CY is licensed under the Creative Commons Attribution–NonCommercial–NoDerivatives 4.0 International (CC BY-NC-ND 4.0) licence.
+
+© The SUBTLEX-CY authors.
+
+This licence permits sharing with attribution for non-commercial purposes only. No derivatives of the original dataset may be distributed.
+Full licence text: https://creativecommons.org/licenses/by-nc-nd/4.0/
+
+Attribution: SUBTLEX-CY Welsh frequency norms dataset.
+
+Welsh–English Dictionary Data
+
+Welsh–English translation pairs are derived from the bilingual dictionary distributed in the CardiffNLP repository:
+
+https://github.com/cardiffnlp/en-cy-bilingual-embeddings
+
+Copyright © 2016 Prifysgol Bangor University.
+
+Licensed under the Apache License, Version 2.0.
+
+You may obtain a copy of the Licence at:
+http://www.apache.org/licenses/LICENSE-2.0
+
+Redistribution of this data complies with the terms of the Apache 2.0 Licence.
+
+WordNet Semantic Themes
+
+Semantic theme labels are derived from Princeton WordNet.
+
+WordNet is provided under the Princeton WordNet License.
+
+Copyright © Princeton University.
+
+WordNet is available for research and commercial use subject to the terms of its licence, including preservation of copyright and disclaimer notices.
+
+Full licence: https://wordnet.princeton.edu/license-and-commercial-use
+
+English Word Frequency Data
+
+English frequency values are derived from the Kaggle dataset:
+
+“English Word Frequency” by R. Tatman
+https://www.kaggle.com/datasets/rtatman/english-word-frequency
+
+Licensed under the MIT License.
+
+The MIT License permits reuse and redistribution provided that the copyright notice and licence text are included.
+
+Software Used in Construction
+
+Parts of the lexicon were generated using spaCy, which is licensed under the MIT License.
+
+https://github.com/explosion/spaCy
+
+spaCy is used for part-of-speech tagging during lexicon construction.
