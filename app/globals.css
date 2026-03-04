@@ -160,6 +160,7 @@ body::before {
 }
 
 .flashcard-face {
+  background: white;
   backface-visibility: hidden;
   display: flex;
   flex-direction: column;
@@ -169,6 +170,10 @@ body::before {
   position: absolute;
   text-align: center;
   touch-action: none;
+}
+
+.flashcard-face-welsh {
+  background: linear-gradient(180deg, #f7faef 0%, #eef5de 100%);
 }
 
 .flashcard-face-back {

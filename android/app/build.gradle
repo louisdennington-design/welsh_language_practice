@@ -15,6 +15,10 @@ android {
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
+        manifestPlaceholders = [
+            productionAppLinkHost: System.getenv("ANDROID_APP_LINK_PRODUCTION_HOST") ?: "app-winter-fire-9745.fly.dev",
+            stagingAppLinkHost   : System.getenv("ANDROID_APP_LINK_STAGING_HOST") ?: "staging.example.com"
+        ]
     }
     buildTypes {
         release {

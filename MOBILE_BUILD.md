@@ -30,14 +30,16 @@ Set `CAPACITOR_SERVER_URL` if the Android shell should target a different hosted
 - Package ID: `com.welshvocab.practice`
 - WebView source: hosted URL via Capacitor `server.url`
 - Diagnostics route: `/settings`
+- Production App Links host: `app-winter-fire-9745.fly.dev`
+- Staging App Links host: configurable via `ANDROID_APP_LINK_STAGING_HOST`
 
 ## Supabase Auth URLs
 In Supabase `Authentication -> URL Configuration`, add the correct site and redirect URLs for every environment you actually use.
 
 For production:
-- `https://your-production-domain`
-- `https://your-production-domain/auth/callback`
-- `https://your-production-domain/auth/reset-password`
+- `https://app-winter-fire-9745.fly.dev`
+- `https://app-winter-fire-9745.fly.dev/auth/callback`
+- `https://app-winter-fire-9745.fly.dev/auth/reset-password`
 
 For staging:
 - `https://your-staging-domain`
@@ -57,3 +59,36 @@ The next engineering step is WebView auth verification:
 3. Verify password reset flow inside Android WebView
 4. Verify email confirmation returns to the app correctly
 5. Verify Supabase session cookies persist across app restarts
+
+## App Links
+This repo now serves:
+
+- `/.well-known/assetlinks.json`
+
+Set this environment variable on the hosted app:
+
+- `ANDROID_APP_LINK_SHA256_RELEASE`
+- `ANDROID_APP_LINK_SHA256_DEBUG`
+
+Format:
+
+```text
+AA:BB:CC:...
+```
+
+Use the release signing certificate fingerprint for `ANDROID_APP_LINK_SHA256_RELEASE`.
+Use the local/debug signing certificate fingerprint for `ANDROID_APP_LINK_SHA256_DEBUG`.
+
+The Android manifest currently includes production App Links intent filters for:
+
+- `/auth/callback`
+- `/auth/reset-password`
+
+The Android manifest also includes the same intent filters for a staging host, sourced from:
+
+- `ANDROID_APP_LINK_STAGING_HOST`
+
+Current placeholders:
+
+- release fingerprint: `RELEASE_SHA256_FINGERPRINT`
+- debug fingerprint: `DEBUG_SHA256_FINGERPRINT`

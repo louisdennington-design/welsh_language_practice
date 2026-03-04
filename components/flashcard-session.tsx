@@ -188,13 +188,15 @@ function renderWordCard(
   const secondaryTranslations = [word.english_2, word.english_3].filter((translation): translation is string => Boolean(translation));
   const englishOnFront = frontLanguage === 'english';
   const cardMeta = `${word.linguistic_type} / ${(word.themes[0] ?? '').replaceAll('_', ' ').toUpperCase()}`;
+  const frontFaceClassName = frontLanguage === 'welsh' ? 'flashcard-face flashcard-face-welsh' : 'flashcard-face';
+  const backFaceClassName = frontLanguage === 'welsh' ? 'flashcard-face flashcard-face-back' : 'flashcard-face flashcard-face-back flashcard-face-welsh';
 
   return (
     <div
       className="flashcard-card flashcard-inner rounded-[2rem] border border-white/60 bg-white shadow-[0_40px_70px_rgba(29,78,54,0.16)]"
       style={{ transform: `rotateY(${isFlipped ? 180 : 0}deg)` }}
     >
-      <div className="flashcard-face">
+      <div className={frontFaceClassName}>
         <p className="absolute left-5 top-5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-400">{cardMeta}</p>
         <button
           aria-label="Query this translation"
@@ -214,7 +216,7 @@ function renderWordCard(
           </div>
         ) : null}
       </div>
-      <div className="flashcard-face flashcard-face-back">
+      <div className={backFaceClassName}>
         <p className="absolute left-5 top-5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-400">{cardMeta}</p>
         <button
           aria-label="Query this translation"
@@ -1169,19 +1171,19 @@ export function FlashcardSession({
             <h2 className="text-xl font-semibold text-slate-900">How this works</h2>
             <div className="mt-5 space-y-4">
               <div className="space-y-2">
-                <p className="text-sm leading-6 text-slate-700">Tap to flip the card.</p>
+                <p className="text-sm leading-6 text-slate-700">Tap to flip the card or press space.</p>
                 <div className="intro-demo-card">
                   <div className="intro-demo-flip-card">Flip</div>
                 </div>
               </div>
               <div className="space-y-2">
-                <p className="text-sm leading-6 text-slate-700">Swipe left if you do not want to see the card again in this session. Use the left arrow key on a keyboard.</p>
+                <p className="text-sm leading-6 text-slate-700">Swipe left or use the left arrow on the keyboard if you do not want to see the card again in this session.</p>
                 <div className="intro-demo-card">
                   <div className="intro-demo-swing-left">Left</div>
                 </div>
               </div>
               <div className="space-y-2">
-                <p className="text-sm leading-6 text-slate-700">Swipe right if you want another chance to see this card in the same session. Use the right arrow key on a keyboard, and press spacebar to flip.</p>
+                <p className="text-sm leading-6 text-slate-700">Swipe right or press the right arrow on the keyboard if you want another chance to see this card in the same session.</p>
                 <div className="intro-demo-card">
                   <div className="intro-demo-swing-right">Right</div>
                 </div>

@@ -13,6 +13,10 @@ Copy `.env.example` to `.env.local` and set:
 
 - `NEXT_PUBLIC_SITE_URL`: canonical site URL for auth redirects. Use `http://localhost:3000` locally and your HTTPS domain in staging/production
 - `CAPACITOR_SERVER_URL`: optional hosted URL for the Android WebView. If unset, it falls back to `NEXT_PUBLIC_SITE_URL`
+- `ANDROID_APP_LINK_PRODUCTION_HOST`: production App Links host for Android. Default: `app-winter-fire-9745.fly.dev`
+- `ANDROID_APP_LINK_STAGING_HOST`: staging App Links host placeholder for Android
+- `ANDROID_APP_LINK_SHA256_RELEASE`: release SHA-256 signing fingerprint placeholder for Android App Links
+- `ANDROID_APP_LINK_SHA256_DEBUG`: debug SHA-256 signing fingerprint placeholder for Android App Links
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: public anon key for browser and server session clients
 - `SUPABASE_SERVICE_ROLE_KEY`: service role key for admin-only scripts such as the legacy import
@@ -74,9 +78,19 @@ To make email/password auth, sign-up confirmation, and reset flows work correctl
 
 - local: `http://localhost:3000`
 - staging: your staging HTTPS app URL
-- production: your production HTTPS app URL
+- production: `https://app-winter-fire-9745.fly.dev`
 
 The app uses that value when generating Supabase email confirmation and password reset redirect URLs. This matters for Android WebView too, because the hosted URL is what Capacitor will load.
+
+For Android App Links, the app also serves `/.well-known/assetlinks.json`. Populate these on the hosted deployment:
+
+- `ANDROID_APP_LINK_SHA256_RELEASE`
+- `ANDROID_APP_LINK_SHA256_DEBUG`
+
+The Android manifest reads App Links hosts from:
+
+- `ANDROID_APP_LINK_PRODUCTION_HOST`
+- `ANDROID_APP_LINK_STAGING_HOST`
 
 ## How to test the auth flow
 1. Start the app with:
