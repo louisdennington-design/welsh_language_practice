@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { buildPublicUrl } from '@/lib/site-url';
 import { createSupabaseBrowserClientOrNull } from '@/server/supabase-browser';
@@ -46,6 +46,34 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
   const [userEmail, setUserEmail] = useState(initialUserEmail);
   const router = useRouter();
   const supabase = createSupabaseBrowserClientOrNull();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAuthUser() {
+      const response = await fetch('/api/auth-user', { cache: 'no-store' }).catch(() => null);
+
+      if (!response || !response.ok) {
+        return;
+      }
+
+      const payload = (await response.json().catch(() => null)) as { user?: { email?: string | null } | null } | null;
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (payload?.user?.email) {
+        setUserEmail(payload.user.email);
+      }
+    }
+
+    void loadAuthUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   async function handleResetPassword() {
     if (!supabase) {
@@ -155,6 +183,11 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
 
       setUserEmail(null);
       setMode('sign-in');
+      await fetch('/auth/signout', { method: 'POST' }).catch(() => null);
+      if (typeof window !== 'undefined') {
+        window.location.assign('/flashcards');
+        return;
+      }
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to sign out.';

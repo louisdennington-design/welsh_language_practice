@@ -20,6 +20,9 @@ Copy `.env.example` to `.env.local` and set:
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: public anon key for browser and server session clients
 - `SUPABASE_SERVICE_ROLE_KEY`: service role key for admin-only scripts such as the legacy import
+- `SENDGRID_API_KEY`: SendGrid API key used by `/api/translation-feedback` to email flagged translations
+- `FEEDBACK_EMAIL_FROM`: verified sender email in SendGrid
+- `FEEDBACK_EMAIL_TO`: destination inbox for translation reports (defaults to `cymru.cards.app@gmail.com` if unset)
 
 ## Local development
 1. Install dependencies:

@@ -15,7 +15,6 @@ import type { CoreLinguisticTypeOption, FrontLanguage, SessionHistoryPoint, Them
 import { readLocalSessionStats, recordLocalAnswer, recordLocalSessionCompletion } from '@/lib/local-session-stats';
 import { getCurrentLevel } from '@/lib/progression';
 import { getRotatingFacts } from '@/lib/welsh-facts';
-import { createSupabaseBrowserClientOrNull } from '@/server/supabase-browser';
 import type { Database } from '@/types/database';
 
 type SessionWord = Pick<
@@ -49,7 +48,6 @@ type FlashcardSessionProps = {
 
 type ModalState = null | 'learned' | 'more_session' | 'less_session' | 'stack';
 type SwipeDirection = 'left' | 'right';
-type UserCardStateInsert = Database['public']['Tables']['user_card_state']['Insert'];
 
 const INTRO_OVERLAY_KEY = 'cymrucards-learning-intro-seen-v6';
 const LEARNED_DIALOG_KEY = 'cymrucards-learned-dialog-seen-v6';
@@ -316,7 +314,6 @@ export function FlashcardSession({
   const dragStartX = useRef<number | null>(null);
   const keyboardSwipeHandlerRef = useRef<((event: KeyboardEvent) => void) | null>(null);
   const swipeTimeoutRef = useRef<number | null>(null);
-  const supabase = createSupabaseBrowserClientOrNull();
 
   useEffect(() => {
     const nextStoredSession = readActiveFlashcardSession();
@@ -445,20 +442,23 @@ export function FlashcardSession({
       return;
     }
 
-    if (!supabase) {
-      setIsInStack(isWordInLocalStack(currentCard.word.id));
-      return;
-    }
+    void fetch(`/api/user-card-state?word_id=${currentCard.word.id}`, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
 
-    void supabase
-      .schema('public')
-      .from('user_card_state')
-      .select('in_stack')
-      .eq('user_id', user.id)
-      .eq('word_id', currentCard.word.id)
-      .maybeSingle()
-      .then(({ data }) => setIsInStack(Boolean(data?.in_stack)));
-  }, [currentCard, supabase, user]);
+        return (await response.json()) as { in_stack?: boolean };
+      })
+      .then((payload) => {
+        if (payload && typeof payload.in_stack === 'boolean') {
+          setIsInStack(payload.in_stack);
+        }
+      })
+      .catch(() => {
+        setIsInStack(isWordInLocalStack(currentCard.word.id));
+      });
+  }, [currentCard, user]);
 
   useEffect(() => {
     if (isComplete) {
@@ -492,19 +492,7 @@ export function FlashcardSession({
     completionTriggeredRef.current = true;
 
     async function finalizeSession() {
-      if (!supabase) {
-        recordLocalSessionCompletion(reviewedCount);
-        setCompletionHistory(readLocalSessionStats().sessionHistory);
-        return;
-      }
-
-      const activeUser =
-        user ??
-        (await supabase.auth.getUser().then(({ data }) => {
-          const nextUser = data.user ? { id: data.user.id } : null;
-          setUser(nextUser);
-          return nextUser;
-        }));
+      const activeUser = await resolveActiveUser();
 
       if (!activeUser) {
         recordLocalSessionCompletion(reviewedCount);
@@ -512,42 +500,25 @@ export function FlashcardSession({
         return;
       }
 
-      const lastSessionDate = new Date().toISOString().slice(0, 10);
-      const { data: existingStats, error: statsLookupError } = await supabase
-        .schema('public')
-        .from('user_stats')
-        .select('session_history, total_learned')
-        .eq('user_id', activeUser.id)
-        .maybeSingle();
+      const response = await fetch('/api/user-progress', {
+        body: JSON.stringify({
+          action: 'finalize_session',
+          learned_count: learnedCount,
+          reviewed_count: reviewedCount,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string; session_history?: SessionHistoryPoint[] } | null;
 
-      if (statsLookupError) {
-        throw statsLookupError;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? 'Unable to finalize cloud session.');
       }
 
-      const previousHistory = Array.isArray(existingStats?.session_history)
-        ? (existingStats.session_history as SessionHistoryPoint[])
-        : [];
-      const nextHistory = [
-        ...previousHistory,
-        {
-          session: previousHistory.length + 1,
-          totalLearned: existingStats?.total_learned ?? learnedCount,
-          wordsShown: reviewedCount,
-        },
-      ];
-      setCompletionHistory(nextHistory);
-
-      const { error } = await supabase.schema('public').from('user_stats').upsert(
-        {
-          last_session_date: lastSessionDate,
-          session_history: nextHistory,
-          user_id: activeUser.id,
-        },
-        { onConflict: 'user_id' },
-      );
-
-      if (error) {
-        throw error;
+      if (Array.isArray(payload?.session_history)) {
+        setCompletionHistory(payload.session_history);
       }
     }
 
@@ -555,7 +526,8 @@ export function FlashcardSession({
       const message = getErrorMessage(error, 'Unable to save progress.');
       setSaveError(`Cloud sync is unavailable (${message}). Progress will stay on this device.`);
     });
-  }, [isComplete, learnedCount, reviewedCount, supabase, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isComplete, learnedCount, reviewedCount, user]);
 
   useEffect(() => {
     if (!exitingCard || exitingCard.isExiting) {
@@ -582,16 +554,18 @@ export function FlashcardSession({
   }, [exitingCard]);
 
   async function resolveActiveUser() {
-    if (!supabase) {
-      return null;
-    }
-
     if (user) {
       return user;
     }
 
-    const { data } = await supabase.auth.getUser();
-    const nextUser = data.user ? { id: data.user.id } : null;
+    const response = await fetch('/api/auth-user', { cache: 'no-store' }).catch(() => null);
+
+    if (!response || !response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json().catch(() => null)) as { user?: { id?: string | null } | null } | null;
+    const nextUser = payload?.user?.id ? { id: payload.user.id } : null;
     setUser(nextUser);
     return nextUser;
   }
@@ -608,82 +582,59 @@ export function FlashcardSession({
     };
   }
 
-  function createEmptyCategoryProgress() {
-    return {
-      ADJ: { learned: 0, reviewed: 0 },
-      NOUN: { learned: 0, reviewed: 0 },
-      VERB: { learned: 0, reviewed: 0 },
-    };
-  }
-
   async function persistStatsDelta(word: SessionWord, reviewedDelta: number, learnedDelta: number) {
     const activeUser = await resolveActiveUser();
 
-    if (!activeUser || !supabase) {
+    if (!activeUser) {
       recordLocalAnswer(createLocalWord(word), learnedDelta > 0);
       setSaveError('Progress is only being saved for this session because you are not signed in.');
       return;
     }
 
-    const { data: existingStats, error: lookupError } = await supabase
-      .schema('public')
-      .from('user_stats')
-      .select('category_progress, total_learned, total_reviewed')
-      .eq('user_id', activeUser.id)
-      .maybeSingle();
-
-    if (lookupError) {
-      throw lookupError;
-    }
-
-    const rawProgress = existingStats?.category_progress;
-    const categoryProgress =
-      rawProgress && typeof rawProgress === 'object' && !Array.isArray(rawProgress) ? { ...createEmptyCategoryProgress(), ...rawProgress } : createEmptyCategoryProgress();
-    const wordProgress = categoryProgress[word.linguistic_type] ?? { learned: 0, reviewed: 0 };
-
-    const { error } = await supabase.schema('public').from('user_stats').upsert(
-      {
-        category_progress: {
-          ...categoryProgress,
-          [word.linguistic_type]: {
-            learned: wordProgress.learned + learnedDelta,
-            reviewed: wordProgress.reviewed + reviewedDelta,
-          },
-        },
-        total_learned: (existingStats?.total_learned ?? 0) + learnedDelta,
-        total_reviewed: (existingStats?.total_reviewed ?? 0) + reviewedDelta,
-        user_id: activeUser.id,
+    const response = await fetch('/api/user-progress', {
+      body: JSON.stringify({
+        action: 'stats_delta',
+        learned_delta: learnedDelta,
+        linguistic_type: word.linguistic_type,
+        reviewed_delta: reviewedDelta,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
       },
-      { onConflict: 'user_id' },
-    );
+      method: 'POST',
+    });
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
-    if (error) {
-      throw error;
+    if (!response.ok) {
+      throw new Error(payload?.error ?? 'Unable to persist stats.');
     }
   }
 
   async function persistCardState(word: SessionWord, status: Database['public']['Enums']['card_state_status'], inStack = false) {
     const activeUser = await resolveActiveUser();
 
-    if (!activeUser || !supabase) {
+    if (!activeUser) {
       if (status === 'removed') {
         removeLocalStackWord(word.id);
       }
       return;
     }
 
-    const payload: UserCardStateInsert & { in_stack?: boolean } = {
-      in_stack: inStack,
-      status,
-      user_id: activeUser.id,
-      word_id: word.id,
-    };
-    const { error } = await supabase.schema('public').from('user_card_state').upsert(payload, {
-      onConflict: 'user_id,word_id',
+    const response = await fetch('/api/user-card-state', {
+      body: JSON.stringify({
+        in_stack: inStack,
+        status,
+        word_id: word.id,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
     });
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
-    if (error) {
-      throw error;
+    if (!response.ok) {
+      throw new Error(payload?.error ?? 'Unable to persist card state.');
     }
   }
 
