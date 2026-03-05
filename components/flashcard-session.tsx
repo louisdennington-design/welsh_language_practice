@@ -194,49 +194,48 @@ function renderWordCard(
   const backFaceClassName = frontLanguage === 'welsh' ? 'flashcard-face flashcard-face-back' : 'flashcard-face flashcard-face-back flashcard-face-welsh';
 
   return (
-    <div
-      className="flashcard-card flashcard-inner rounded-[2rem] border border-white/60 bg-white shadow-[0_40px_70px_rgba(29,78,54,0.16)]"
-      style={{ transform: `rotateY(${isFlipped ? 180 : 0}deg)` }}
-    >
-      <div className={frontFaceClassName}>
-        <p className="absolute left-5 top-5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-400">{cardMeta}</p>
-        <button
-          aria-label="Query this translation"
-          className="absolute bottom-5 left-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-500"
-          data-card-control="true"
-          onClick={onOpenFeedback}
-          type="button"
-        >
-          ?
-        </button>
-        <p className="text-center text-4xl font-semibold leading-tight tracking-tight text-slate-900">{faces.frontText}</p>
-        {englishOnFront && secondaryTranslations.length > 0 ? (
-          <div className="mt-4 space-y-1 text-center text-lg text-slate-400">
-            {secondaryTranslations.map((translation) => (
-              <p key={translation}>{translation}</p>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <div className={backFaceClassName}>
-        <p className="absolute left-5 top-5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-400">{cardMeta}</p>
-        <button
-          aria-label="Query this translation"
-          className="absolute bottom-5 left-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-500"
-          data-card-control="true"
-          onClick={onOpenFeedback}
-          type="button"
-        >
-          ?
-        </button>
-        <p className="text-center text-4xl font-semibold leading-tight tracking-tight text-slate-900">{faces.backText}</p>
-        {!englishOnFront && secondaryTranslations.length > 0 ? (
-          <div className="mt-4 space-y-1 text-center text-lg text-slate-400">
-            {secondaryTranslations.map((translation) => (
-              <p key={translation}>{translation}</p>
-            ))}
-          </div>
-        ) : null}
+    <div className="flashcard-card rounded-[2rem] border border-white/60 bg-white shadow-[0_40px_70px_rgba(29,78,54,0.16)]">
+      <div className="flashcard-inner" style={{ transform: `rotateY(${isFlipped ? 180 : 0}deg)` }}>
+        <div className={frontFaceClassName}>
+          <p className="absolute left-5 top-5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-400">{cardMeta}</p>
+          <button
+            aria-label="Query this translation"
+            className="absolute bottom-5 left-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-500"
+            data-card-control="true"
+            onClick={onOpenFeedback}
+            type="button"
+          >
+            ?
+          </button>
+          <p className="text-center text-4xl font-semibold leading-tight tracking-tight text-slate-900">{faces.frontText}</p>
+          {englishOnFront && secondaryTranslations.length > 0 ? (
+            <div className="mt-4 space-y-1 text-center text-lg text-slate-400">
+              {secondaryTranslations.map((translation) => (
+                <p key={translation}>{translation}</p>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <div className={backFaceClassName}>
+          <p className="absolute left-5 top-5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-400">{cardMeta}</p>
+          <button
+            aria-label="Query this translation"
+            className="absolute bottom-5 left-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-500"
+            data-card-control="true"
+            onClick={onOpenFeedback}
+            type="button"
+          >
+            ?
+          </button>
+          <p className="text-center text-4xl font-semibold leading-tight tracking-tight text-slate-900">{faces.backText}</p>
+          {!englishOnFront && secondaryTranslations.length > 0 ? (
+            <div className="mt-4 space-y-1 text-center text-lg text-slate-400">
+              {secondaryTranslations.map((translation) => (
+                <p key={translation}>{translation}</p>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -362,6 +361,58 @@ export function FlashcardSession({
       window.removeEventListener('keydown', handleWindowKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    function handleOverlayKeyDown(event: KeyboardEvent) {
+      if (showIntroOverlay) {
+        if (event.key === 'Escape' || event.key === 'Enter') {
+          event.preventDefault();
+          closeIntroOverlay();
+        }
+        return;
+      }
+
+      if (modalState) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setPendingSwipeDirection(null);
+          setModalState(null);
+          return;
+        }
+
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          confirmModalAction();
+        }
+        return;
+      }
+
+      if (showFeedbackPrompt) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setShowFeedbackPrompt(false);
+          return;
+        }
+
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          void submitTranslationFeedback();
+        }
+        return;
+      }
+
+      if (showPhoneticAid && event.key === 'Escape') {
+        event.preventDefault();
+        setShowPhoneticAid(false);
+      }
+    }
+
+    window.addEventListener('keydown', handleOverlayKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleOverlayKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalState, showFeedbackPrompt, showIntroOverlay, showPhoneticAid]);
 
   useEffect(() => {
     if (!currentCard || readLocalFlag(INTRO_OVERLAY_KEY)) {
@@ -641,8 +692,9 @@ export function FlashcardSession({
     return Math.max(1, Math.round(words.length / 25));
   }
 
-  function getRepeatInsertionOffset() {
-    return Math.max(3, Math.floor(words.length * 0.8));
+  function getRepeatInsertionOffset(totalCards: number) {
+    const remainingCards = Math.max(1, totalCards - (currentIndex + 1));
+    return Math.max(6, Math.floor(remainingCards * 0.7));
   }
 
   function queueRepeatForWord(word: SessionWord) {
@@ -658,7 +710,7 @@ export function FlashcardSession({
     }));
     setDisplayCards((currentCards) => {
       const nextCards = [...currentCards];
-      const insertionIndex = Math.min(Math.max(currentIndex + 3, getRepeatInsertionOffset()), nextCards.length);
+      const insertionIndex = Math.min(currentIndex + getRepeatInsertionOffset(nextCards.length), nextCards.length);
 
       nextCards.splice(insertionIndex, 0, {
         kind: 'word',

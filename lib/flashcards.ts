@@ -78,6 +78,91 @@ const DECILE_THRESHOLDS: Record<CoreLinguisticTypeOption, [number, number, numbe
   NOUN: [1, 3, 6, 12, 23, 49, 100, 238, 677],
   VERB: [1, 3, 6, 13, 27, 53, 112.1, 265.4, 836.7],
 };
+const RARITY_UPPER_PERCENTILE: Record<number, number> = {
+  10: 3,
+  20: 7,
+  30: 12,
+  40: 18,
+  50: 26,
+  60: 36,
+  70: 50,
+  80: 68,
+  90: 84,
+  100: 100,
+};
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function interpolatePercentile(
+  frequency: number,
+  highFrequency: number,
+  lowFrequency: number,
+  highPercentile: number,
+  lowPercentile: number,
+) {
+  const safeHigh = Math.max(highFrequency, 1);
+  const safeLow = Math.max(Math.min(lowFrequency, safeHigh - 1e-6), 1e-6);
+  const safeFrequency = clampNumber(Math.max(frequency, 1e-6), safeLow, safeHigh);
+  const highLog = Math.log(safeHigh);
+  const lowLog = Math.log(safeLow);
+  const frequencyLog = Math.log(safeFrequency);
+  const denominator = highLog - lowLog;
+
+  if (Math.abs(denominator) < 1e-8) {
+    return lowPercentile;
+  }
+
+  const ratio = clampNumber((frequencyLog - lowLog) / denominator, 0, 1);
+  return lowPercentile + (highPercentile - lowPercentile) * ratio;
+}
+
+function getFrequencyPercentileEstimate(pos: CoreLinguisticTypeOption, frequency: number | null | undefined) {
+  if (frequency === null || frequency === undefined) {
+    return 100;
+  }
+
+  const [p10, p20, p30, p40, p50, p60, p70, p80, p90] = DECILE_THRESHOLDS[pos];
+
+  if (frequency >= p90) {
+    return interpolatePercentile(frequency, p90 * 40, p90, 0, 10);
+  }
+
+  if (frequency >= p80) {
+    return interpolatePercentile(frequency, p90, p80, 10, 20);
+  }
+
+  if (frequency >= p70) {
+    return interpolatePercentile(frequency, p80, p70, 20, 30);
+  }
+
+  if (frequency >= p60) {
+    return interpolatePercentile(frequency, p70, p60, 30, 40);
+  }
+
+  if (frequency >= p50) {
+    return interpolatePercentile(frequency, p60, p50, 40, 50);
+  }
+
+  if (frequency >= p40) {
+    return interpolatePercentile(frequency, p50, p40, 50, 60);
+  }
+
+  if (frequency >= p30) {
+    return interpolatePercentile(frequency, p40, p30, 60, 70);
+  }
+
+  if (frequency >= p20) {
+    return interpolatePercentile(frequency, p30, p20, 70, 80);
+  }
+
+  if (frequency >= p10) {
+    return interpolatePercentile(frequency, p20, p10, 80, 90);
+  }
+
+  return interpolatePercentile(frequency, p10, p10 / 40, 90, 100);
+}
 
 export function getQueueSize(duration: DurationOption) {
   if (duration === 'unlimited') {
@@ -233,7 +318,11 @@ export function getRarityForFrequency(pos: CoreLinguisticTypeOption, frequency: 
 export function getRarityLabel(rarity: RarityOption) {
   const upperBound = getRarityWindowBounds(rarity).upperBound;
 
-  if (upperBound <= 25) {
+  if (upperBound <= 12) {
+    return 'very common';
+  }
+
+  if (upperBound <= 26) {
     return 'common';
   }
 
@@ -241,11 +330,11 @@ export function getRarityLabel(rarity: RarityOption) {
     return 'fairly common';
   }
 
-  if (upperBound <= 75) {
-    return 'rare';
+  if (upperBound <= 84) {
+    return 'uncommon';
   }
 
-  return 'very rare';
+  return 'rare to very rare';
 }
 
 export function getBroadFrequencyFilter(pos: CoreLinguisticTypeOption, frequency: number | null | undefined): Exclude<FrequencyFilterOption, 'all'> {
@@ -263,19 +352,20 @@ export function getBroadFrequencyFilter(pos: CoreLinguisticTypeOption, frequency
 }
 
 export function getRarityWindowBounds(rarity: RarityOption) {
-  const upperBound = Math.max(10, Math.min(100, Math.floor(Number(rarity) / 5) * 5));
+  const snappedSliderValue = clampNumber(Math.floor(Number(rarity) / 10) * 10, RARITY_SLIDER_MIN, RARITY_SLIDER_MAX);
+  const upperBound = RARITY_UPPER_PERCENTILE[snappedSliderValue] ?? 100;
+
   return {
-    lowerBound: Math.max(0, upperBound - 35),
-    upperBound: Math.max(10, upperBound - 5),
+    lowerBound: 0,
+    upperBound,
   };
 }
 
 export function matchesRarityWindow(pos: CoreLinguisticTypeOption, frequency: number | null | undefined, rarity: RarityOption) {
-  const decileUpperBound = Number(getRarityForFrequency(pos, frequency));
-  const decileLowerBound = decileUpperBound - 10;
   const { lowerBound, upperBound } = getRarityWindowBounds(rarity);
+  const percentileEstimate = getFrequencyPercentileEstimate(pos, frequency);
 
-  return decileUpperBound > lowerBound && decileLowerBound <= upperBound;
+  return percentileEstimate > lowerBound && percentileEstimate <= upperBound;
 }
 
 export function matchesFrequencyFilter(

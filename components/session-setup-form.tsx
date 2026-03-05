@@ -74,6 +74,7 @@ export function SessionSetupForm({
   const [types, setTypes] = useState<LinguisticTypeOption[]>(initialTypes);
   const [stackWords, setStackWords] = useState<StackedWord[]>(initialStackWords);
   const [activeSession, setActiveSession] = useState<ActiveFlashcardSession | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<null | 'resume' | 'start'>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -127,6 +128,7 @@ export function SessionSetupForm({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setPendingNavigation('start');
 
     const params = new URLSearchParams({
       duration,
@@ -156,6 +158,8 @@ export function SessionSetupForm({
     if (!activeSession) {
       return;
     }
+
+    setPendingNavigation('resume');
 
     router.push(activeSession.sessionUrl);
   }
@@ -189,9 +193,10 @@ export function SessionSetupForm({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <button
-          className="w-full rounded-full px-4 py-[1.125rem] text-sm font-semibold text-white shadow-[0_14px_34px_rgba(20,40,22,0.28)]"
+          className="w-full rounded-full px-4 py-[1.125rem] text-sm font-semibold text-white shadow-[0_14px_34px_rgba(20,40,22,0.28)] disabled:cursor-wait"
+          disabled={pendingNavigation !== null}
           form="session-options-form"
-          style={{ backgroundColor: '#234812' }}
+          style={{ backgroundColor: pendingNavigation === 'start' ? '#91a488' : '#234812' }}
           type="submit"
         >
           Start new session
@@ -200,9 +205,13 @@ export function SessionSetupForm({
           className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-[1.125rem] text-sm font-semibold shadow-sm ${
             activeSession ? 'bg-white text-[#234812]' : 'cursor-not-allowed bg-slate-100 text-slate-400'
           }`}
-          disabled={!activeSession}
+          disabled={!activeSession || pendingNavigation !== null}
           onClick={handleResume}
-          style={activeSession ? { borderColor: '#c7d3a7' } : { borderColor: '#e2e8f0' }}
+          style={
+            activeSession
+              ? { borderColor: '#c7d3a7', color: pendingNavigation === 'resume' ? '#94a3b8' : '#234812' }
+              : { borderColor: '#e2e8f0' }
+          }
           type="button"
         >
           <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">

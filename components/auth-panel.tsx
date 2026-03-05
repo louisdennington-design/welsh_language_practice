@@ -202,7 +202,7 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
             style={mode === nextMode ? { backgroundColor: '#234812' } : undefined}
             type="button"
           >
-            {nextMode === 'sign-in' ? 'Sign in' : nextMode === 'sign-up' ? 'Sign up' : 'Reset'}
+            {nextMode === 'sign-in' ? 'Sign in' : nextMode === 'sign-up' ? 'Sign up' : 'Reset password'}
           </button>
         ))}
       </div>
@@ -244,7 +244,7 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
         <button
           className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
           disabled={isLoading || !supabase || email.trim() === '' || (mode !== 'reset' && password.trim() === '')}
-          style={{ backgroundColor: '#234812' }}
+          style={{ backgroundColor: isLoading ? '#91a488' : '#234812' }}
           type="submit"
         >
           {copy.action}

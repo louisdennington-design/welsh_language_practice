@@ -19,6 +19,7 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [isSplashFading, setIsSplashFading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
     const fadeTimer = window.setTimeout(() => {
@@ -34,6 +35,10 @@ export function AppShell({ children }: AppShellProps) {
     };
   }, []);
 
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
   return (
     <div className="app-shell">
       <div className={`app-shell-content ${showSplash ? 'app-shell-content-hidden' : 'app-shell-content-visible'}`}>{children}</div>
@@ -48,9 +53,12 @@ export function AppShell({ children }: AppShellProps) {
 
           return (
             <Link
-              className={`app-bottom-nav-link ${isActive ? 'app-bottom-nav-link-active' : ''}`}
+              className={`app-bottom-nav-link ${isActive ? 'app-bottom-nav-link-active' : ''} ${
+                pendingHref === item.href ? (isActive ? 'app-bottom-nav-link-pending-active' : 'app-bottom-nav-link-pending-inactive') : ''
+              }`}
               href={item.href}
               key={item.href}
+              onClick={() => setPendingHref(item.href)}
             >
               {item.label}
             </Link>
