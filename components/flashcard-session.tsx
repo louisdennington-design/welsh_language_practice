@@ -15,7 +15,7 @@ import type { CoreLinguisticTypeOption, FrontLanguage, SessionHistoryPoint, Them
 import { readLocalSessionStats, recordLocalAnswer, recordLocalSessionCompletion } from '@/lib/local-session-stats';
 import { getCurrentLevel } from '@/lib/progression';
 import { getRotatingFacts } from '@/lib/welsh-facts';
-import { createSupabaseBrowserClient } from '@/server/supabase-browser';
+import { createSupabaseBrowserClientOrNull } from '@/server/supabase-browser';
 import type { Database } from '@/types/database';
 
 type SessionWord = Pick<
@@ -305,7 +305,7 @@ export function FlashcardSession({
   const dragStartX = useRef<number | null>(null);
   const keyboardSwipeHandlerRef = useRef<((event: KeyboardEvent) => void) | null>(null);
   const swipeTimeoutRef = useRef<number | null>(null);
-  const supabase = createSupabaseBrowserClient();
+  const supabase = createSupabaseBrowserClientOrNull();
 
   useEffect(() => {
     const nextStoredSession = readActiveFlashcardSession();
@@ -382,6 +382,11 @@ export function FlashcardSession({
       return;
     }
 
+    if (!supabase) {
+      setIsInStack(isWordInLocalStack(currentCard.word.id));
+      return;
+    }
+
     void supabase
       .schema('public')
       .from('user_card_state')
@@ -424,6 +429,12 @@ export function FlashcardSession({
     completionTriggeredRef.current = true;
 
     async function finalizeSession() {
+      if (!supabase) {
+        recordLocalSessionCompletion(reviewedCount);
+        setCompletionHistory(readLocalSessionStats().sessionHistory);
+        return;
+      }
+
       const activeUser =
         user ??
         (await supabase.auth.getUser().then(({ data }) => {
@@ -508,6 +519,10 @@ export function FlashcardSession({
   }, [exitingCard]);
 
   async function resolveActiveUser() {
+    if (!supabase) {
+      return null;
+    }
+
     if (user) {
       return user;
     }
@@ -541,7 +556,7 @@ export function FlashcardSession({
   async function persistStatsDelta(word: SessionWord, reviewedDelta: number, learnedDelta: number) {
     const activeUser = await resolveActiveUser();
 
-    if (!activeUser) {
+    if (!activeUser || !supabase) {
       recordLocalAnswer(createLocalWord(word), learnedDelta > 0);
       setSaveError('Progress is only being saved for this session because you are not signed in.');
       return;
@@ -587,7 +602,7 @@ export function FlashcardSession({
   async function persistCardState(word: SessionWord, status: Database['public']['Enums']['card_state_status'], inStack = false) {
     const activeUser = await resolveActiveUser();
 
-    if (!activeUser) {
+    if (!activeUser || !supabase) {
       if (status === 'removed') {
         removeLocalStackWord(word.id);
       }

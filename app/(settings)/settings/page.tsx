@@ -2,6 +2,9 @@ import { MobileDiagnosticsPanel } from '@/components/mobile-diagnostics-panel';
 import { getEnvironmentName, getAppVersion } from '@/lib/mobile-config';
 import { getPublicSiteUrl } from '@/lib/site-url';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default function SettingsPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-5 py-8">

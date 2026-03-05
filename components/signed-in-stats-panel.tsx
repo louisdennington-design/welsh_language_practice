@@ -7,7 +7,7 @@ import { LevelCard } from '@/components/level-card';
 import { SessionHistoryGraph } from '@/components/session-history-graph';
 import { StackWordGroups } from '@/components/stack-word-groups';
 import type { CoreLinguisticTypeOption, FrequencyFilterOption, SessionHistoryPoint } from '@/lib/flashcards';
-import { createSupabaseBrowserClient } from '@/server/supabase-browser';
+import { createSupabaseBrowserClientOrNull } from '@/server/supabase-browser';
 
 type SignedInLearnedWord = {
   english: string;
@@ -45,9 +45,14 @@ export function SignedInStatsPanel({
   const [learnedWords, setLearnedWords] = useState(initialLearnedWords);
   const [stackWords, setStackWords] = useState(initialStackWords);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const supabase = createSupabaseBrowserClient();
+  const supabase = createSupabaseBrowserClientOrNull();
 
   async function handleReinstate(wordId: number) {
+    if (!supabase) {
+      setSaveError('Supabase stats are not configured.');
+      return;
+    }
+
     setSaveError(null);
 
     const { error } = await supabase
@@ -73,6 +78,11 @@ export function SignedInStatsPanel({
   }
 
   async function handleRemoveFromStack(wordId: number) {
+    if (!supabase) {
+      setSaveError('Supabase stats are not configured.');
+      return;
+    }
+
     setSaveError(null);
 
     const { error } = await supabase

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { buildPublicUrl } from '@/lib/site-url';
-import { createSupabaseBrowserClient } from '@/server/supabase-browser';
+import { createSupabaseBrowserClientOrNull } from '@/server/supabase-browser';
 
 type AuthMode = 'reset' | 'sign-in' | 'sign-up';
 
@@ -45,9 +45,13 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState(initialUserEmail);
   const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
+  const supabase = createSupabaseBrowserClientOrNull();
 
   async function handleResetPassword() {
+    if (!supabase) {
+      throw new Error('Supabase auth is not configured.');
+    }
+
     const redirectTo = `${buildPublicUrl('/auth/reset-password')}?next=${encodeURIComponent(redirectPath)}`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
@@ -62,6 +66,10 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
   }
 
   async function handleSignIn() {
+    if (!supabase) {
+      throw new Error('Supabase auth is not configured.');
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -78,6 +86,10 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
   }
 
   async function handleSignUp() {
+    if (!supabase) {
+      throw new Error('Supabase auth is not configured.');
+    }
+
     const redirectTo = `${buildPublicUrl('/auth/callback')}?next=${encodeURIComponent(redirectPath)}`;
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -126,6 +138,10 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
   }
 
   async function handleSignOut() {
+    if (!supabase) {
+      throw new Error('Supabase auth is not configured.');
+    }
+
     setErrorMessage(null);
     setStatusMessage(null);
     setIsLoading(true);
@@ -227,11 +243,7 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
 
         <button
           className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-          disabled={
-            isLoading ||
-            email.trim() === '' ||
-            (mode !== 'reset' && password.trim() === '')
-          }
+          disabled={isLoading || !supabase || email.trim() === '' || (mode !== 'reset' && password.trim() === '')}
           style={{ backgroundColor: '#234812' }}
           type="submit"
         >

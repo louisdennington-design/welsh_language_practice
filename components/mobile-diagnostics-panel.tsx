@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createSupabaseBrowserClient } from '@/server/supabase-browser';
+import { createSupabaseBrowserClientOrNull } from '@/server/supabase-browser';
 
 type MobileDiagnosticsPanelProps = {
   appVersion: string;
@@ -12,9 +12,15 @@ type MobileDiagnosticsPanelProps = {
 export function MobileDiagnosticsPanel({ appVersion, environment, siteUrl }: MobileDiagnosticsPanelProps) {
   const [authStatus, setAuthStatus] = useState('Checking...');
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const supabase = createSupabaseBrowserClient();
+  const supabase = createSupabaseBrowserClientOrNull();
 
   useEffect(() => {
+    if (!supabase) {
+      setAuthStatus('Not configured');
+      setUserEmail(null);
+      return;
+    }
+
     let isMounted = true;
 
     void supabase.auth.getUser().then(({ data, error }) => {

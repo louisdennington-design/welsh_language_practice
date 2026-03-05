@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createSupabaseBrowserClient } from '@/server/supabase-browser';
+import { createSupabaseBrowserClientOrNull } from '@/server/supabase-browser';
 
 type ResetPasswordFormProps = {
   nextPath: string;
@@ -16,9 +16,15 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
   const [password, setPassword] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
+  const supabase = createSupabaseBrowserClientOrNull();
 
   useEffect(() => {
+    if (!supabase) {
+      setErrorMessage('Supabase auth is not configured.');
+      return;
+    }
+    const client = supabase;
+
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const accessToken = hashParams.get('access_token');
     const refreshToken = hashParams.get('refresh_token');
@@ -29,7 +35,7 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
         return;
       }
 
-      const { error } = await supabase.auth.setSession({
+      const { error } = await client.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
       });
@@ -44,10 +50,15 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
     }
 
     void prepareRecoverySession();
-  }, [supabase.auth]);
+  }, [supabase]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!supabase) {
+      setErrorMessage('Supabase auth is not configured.');
+      return;
+    }
+
     setErrorMessage(null);
     setStatusMessage(null);
     setIsLoading(true);
