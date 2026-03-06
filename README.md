@@ -19,6 +19,7 @@ Copy `.env.example` to `.env.local` and set:
 - `ANDROID_APP_LINK_SHA256_DEBUG`: debug SHA-256 signing fingerprint placeholder for Android App Links
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: public anon key for browser and server session clients
+- `NEXT_PUBLIC_GA_MEASUREMENT_ID`: GA4 measurement id (optional). When set, the app emits page views and custom analytics events
 - `SUPABASE_SERVICE_ROLE_KEY`: service role key for admin-only scripts such as the legacy import
 - `SENDGRID_API_KEY`: SendGrid API key used by `/api/translation-feedback` to email flagged translations
 - `FEEDBACK_EMAIL_FROM`: verified sender email in SendGrid

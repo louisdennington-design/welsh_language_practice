@@ -8,6 +8,7 @@ import {
   writeSessionSetupSnapshot,
   type ActiveFlashcardSession,
 } from '@/lib/active-flashcard-session';
+import { trackEvent } from '@/lib/analytics';
 import { readLocalStack, type StackedWord } from '@/lib/card-stack';
 import {
   DEFAULT_DURATION,
@@ -151,6 +152,15 @@ export function SessionSetupForm({
       types,
     });
 
+    trackEvent('session_started', {
+      cards_in_session: duration,
+      front_language: frontLanguage,
+      has_stack_selected: types.includes('STACK'),
+      rarity_band: rarity,
+      themes_selected: themes.join(','),
+      types_selected: types.join(','),
+    });
+
     router.push(`/flashcards?${params.toString()}`);
   }
 
@@ -160,6 +170,11 @@ export function SessionSetupForm({
     }
 
     setPendingNavigation('resume');
+    trackEvent('session_resumed', {
+      cards_in_session: duration,
+      front_language: frontLanguage,
+      has_active_session: true,
+    });
 
     router.push(activeSession.sessionUrl);
   }

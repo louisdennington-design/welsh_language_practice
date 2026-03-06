@@ -79,6 +79,20 @@ export default async function AboutPage() {
         className="rounded-[2rem] border p-6 shadow-[0_28px_80px_rgba(26,67,46,0.16)] backdrop-blur"
         style={{ backgroundColor: '#2C5439', borderColor: '#2C5439' }}
       >
+        <h2 className="text-lg font-semibold text-white">Privacy</h2>
+      </section>
+      <section className="rounded-[2rem] border border-white/50 bg-white/84 p-5 shadow-[0_22px_50px_rgba(26,67,46,0.12)] backdrop-blur">
+        <p className="text-sm leading-6 text-slate-700">
+          CymruCards uses Supabase for authentication and syncing learning progress, and uses analytics to understand overall app usage patterns
+          and improve the learning experience. Analytics is configured without collecting raw IP addresses in the app layer, and translation feedback
+          can be sent to the developer when you choose to report an entry.
+        </p>
+      </section>
+
+      <section
+        className="rounded-[2rem] border p-6 shadow-[0_28px_80px_rgba(26,67,46,0.16)] backdrop-blur"
+        style={{ backgroundColor: '#2C5439', borderColor: '#2C5439' }}
+      >
         <h2 className="text-lg font-semibold text-white">About</h2>
       </section>
       <section className="rounded-[2rem] border border-white/50 bg-white/84 p-5 shadow-[0_22px_50px_rgba(26,67,46,0.12)] backdrop-blur">

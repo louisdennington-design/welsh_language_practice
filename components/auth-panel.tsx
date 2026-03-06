@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { trackEvent } from '@/lib/analytics';
 import { buildPublicUrl } from '@/lib/site-url';
 import { createSupabaseBrowserClientOrNull } from '@/server/supabase-browser';
 
@@ -90,6 +91,7 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
     }
 
     setStatusMessage(`Password reset email sent to ${email}.`);
+    trackEvent('password_reset_requested');
     setPassword('');
   }
 
@@ -109,6 +111,7 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
 
     setUserEmail(data.user.email ?? email);
     setStatusMessage('Signed in successfully.');
+    trackEvent('sign_in_success');
     setPassword('');
     router.refresh();
   }
@@ -134,11 +137,13 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
     if (data.session) {
       setUserEmail(data.user?.email ?? email);
       setStatusMessage('Account created and signed in.');
+      trackEvent('sign_up_success', { confirmed_immediately: true });
       router.refresh();
       return;
     }
 
     setStatusMessage(`Check ${email} to confirm your account, then sign in.`);
+    trackEvent('sign_up_success', { confirmed_immediately: false });
     setPassword('');
     setMode('sign-in');
   }
@@ -160,6 +165,7 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to complete authentication.';
       setErrorMessage(message);
+      trackEvent('auth_error', { auth_mode: mode });
     } finally {
       setIsLoading(false);
     }
@@ -183,6 +189,7 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
 
       setUserEmail(null);
       setMode('sign-in');
+      trackEvent('sign_out');
       await fetch('/auth/signout', { method: 'POST' }).catch(() => null);
       if (typeof window !== 'undefined') {
         window.location.assign('/flashcards');

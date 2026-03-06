@@ -10,6 +10,7 @@ import {
   writeActiveFlashcardSession,
   type StoredDisplayCard,
 } from '@/lib/active-flashcard-session';
+import { trackEvent } from '@/lib/analytics';
 import { isWordInLocalStack, removeLocalStackWord, upsertLocalStackWord } from '@/lib/card-stack';
 import type { CoreLinguisticTypeOption, FrontLanguage, SessionHistoryPoint, ThemeOption } from '@/lib/flashcards';
 import { readLocalSessionStats, recordLocalAnswer, recordLocalSessionCompletion } from '@/lib/local-session-stats';
@@ -509,6 +510,12 @@ export function FlashcardSession({
         const nextHistory = readLocalSessionStats().sessionHistory;
         setCompletionHistory(nextHistory);
         maybeOpenLevelModal(previousHistory, nextHistory);
+        trackEvent('session_completed', {
+          cards_learned: learnedCount,
+          cards_seen: reviewedCount,
+          cards_seen_again: repeatCount,
+          signed_in: false,
+        });
         return;
       }
 
@@ -538,6 +545,12 @@ export function FlashcardSession({
         setCompletionHistory(payload.session_history);
         maybeOpenLevelModal(previousHistory, payload.session_history);
       }
+      trackEvent('session_completed', {
+        cards_learned: learnedCount,
+        cards_seen: reviewedCount,
+        cards_seen_again: repeatCount,
+        signed_in: true,
+      });
     }
 
     void finalizeSession().catch((error) => {
@@ -553,6 +566,7 @@ export function FlashcardSession({
 
     if (nextLevel.name !== previousLevel.name) {
       setUnlockedLevel(nextLevel);
+      trackEvent('badge_unlocked', { badge_name: nextLevel.name });
     }
   }
 
@@ -720,6 +734,7 @@ export function FlashcardSession({
     }
 
     if (currentCard.kind === 'fact') {
+      trackEvent('fact_card_dismissed');
       startCardExit(direction);
       return;
     }
@@ -731,6 +746,12 @@ export function FlashcardSession({
         if (queuedRepeat) {
           setRepeatCount((count) => count + 1);
         }
+        trackEvent('card_swiped_right', {
+          card_id: currentCard.word.id,
+          card_pos: currentCard.word.linguistic_type,
+          card_theme: currentCard.word.themes[0] ?? 'none',
+          requeued: queuedRepeat,
+        });
         void persistStatsDelta(currentCard.word, 1, 0).catch((error) => {
           const message = getErrorMessage(error, 'Unable to save progress.');
           setSaveError(`Cloud sync is unavailable (${message}). Progress will stay on this device.`);
@@ -742,6 +763,11 @@ export function FlashcardSession({
     startCardExit(direction, () => {
       setReviewedCount((count) => count + 1);
       setDismissedCount((count) => count + 1);
+      trackEvent('card_swiped_left', {
+        card_id: currentCard.word.id,
+        card_pos: currentCard.word.linguistic_type,
+        card_theme: currentCard.word.themes[0] ?? 'none',
+      });
       void persistStatsDelta(currentCard.word, 1, 0).catch((error) => {
         const message = getErrorMessage(error, 'Unable to save progress.');
         setSaveError(`Cloud sync is unavailable (${message}). Progress will stay on this device.`);
@@ -835,6 +861,11 @@ export function FlashcardSession({
     });
 
     try {
+      trackEvent('card_marked_learned', {
+        card_id: currentCard.word.id,
+        card_pos: currentCard.word.linguistic_type,
+        card_theme: currentCard.word.themes[0] ?? 'none',
+      });
       setIsInStack(false);
       removeLocalStackWord(currentCard.word.id);
       await persistCardState(currentCard.word, 'removed', false);
@@ -903,6 +934,11 @@ export function FlashcardSession({
 
       await persistCardState(currentCard.word, 'active', nextInStack);
       setIsInStack(nextInStack);
+      trackEvent(nextInStack ? 'card_added_to_stack' : 'card_removed_from_stack', {
+        card_id: currentCard.word.id,
+        card_pos: currentCard.word.linguistic_type,
+        card_theme: currentCard.word.themes[0] ?? 'none',
+      });
     } catch (error) {
       const message = getErrorMessage(error, 'Unable to update your stack.');
       setSaveError(`Cloud sync is unavailable (${message}). Progress will stay on this device.`);
@@ -954,6 +990,10 @@ export function FlashcardSession({
         throw new Error(payload?.error ?? 'Unable to send feedback.');
       }
 
+      trackEvent('translation_feedback_submitted', {
+        card_id: currentCard.word.id,
+        card_theme: currentCard.word.themes[0] ?? 'none',
+      });
       setFeedbackStatus(
         payload?.provider_status
           ? `Translation query sent (provider status ${payload.provider_status}${payload.message_id ? `, id ${payload.message_id}` : ''}).`
@@ -977,6 +1017,12 @@ export function FlashcardSession({
       return;
     }
 
+    if (currentCard.kind === 'word') {
+      trackEvent('card_flipped', {
+        card_id: currentCard.word.id,
+        card_pos: currentCard.word.linguistic_type,
+      });
+    }
     setIsFlipped((currentValue) => !currentValue);
   }
 
