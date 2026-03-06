@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { GoogleAnalytics } from '@/components/google-analytics';
 import './globals.css';
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             __html: `window.__CYMRUCARDS_RUNTIME_ENV__ = ${JSON.stringify(runtimeClientEnv)};`,
           }}
         />
-        <GoogleAnalytics measurementId={gaMeasurementId} />
+        <Suspense fallback={null}>
+          <GoogleAnalytics measurementId={gaMeasurementId} />
+        </Suspense>
         <AppShell>{children}</AppShell>
       </body>
     </html>
