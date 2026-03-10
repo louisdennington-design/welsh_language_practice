@@ -97,22 +97,23 @@ export default async function FlashcardsPage({ searchParams }: { searchParams?: 
   );
 
   let initialStackWords: StackedWord[] = [];
+  let initialRemovedWordIds: number[] = [];
 
   if (!sessionKey) {
     if (user) {
       const { data: stackedRows, error: stackedRowsError } = await supabaseServer
         .schema('public')
         .from('user_card_state')
-        .select('word_id')
+        .select('word_id, status, in_stack')
         .eq('user_id', user.id)
-        .eq('in_stack', true)
-        .eq('status', 'active');
+        .or('in_stack.eq.true,status.eq.removed');
 
       if (stackedRowsError) {
         console.error('Unable to load initial stack words:', stackedRowsError.message);
       }
 
-      const stackIds = new Set((stackedRows ?? []).map((row) => row.word_id));
+      const stackIds = new Set((stackedRows ?? []).filter((row) => row.in_stack && row.status === 'active').map((row) => row.word_id));
+      initialRemovedWordIds = (stackedRows ?? []).filter((row) => row.status === 'removed').map((row) => row.word_id);
       initialStackWords = allLexiconRows
         .filter((word) => stackIds.has(word.id))
         .map((word) => ({
@@ -140,11 +141,13 @@ export default async function FlashcardsPage({ searchParams }: { searchParams?: 
               linguistic_type: word.spacy_pos_1 as CoreLinguisticTypeOption,
               themes: normalizeThemeArray(word.wordnet_themes_reduced),
             }))}
+          initialRemovedWordIds={initialRemovedWordIds}
           initialStackWords={initialStackWords}
           initialFrontLanguage={selectedFrontLanguage}
           initialRarity={selectedRarity}
           initialThemes={selectedThemes}
           initialTypes={selectedTypes}
+          isSignedIn={Boolean(user)}
         />
         <AuthPanel initialUserEmail={user?.email ?? null} redirectPath="/flashcards" />
       </main>

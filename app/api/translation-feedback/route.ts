@@ -2,13 +2,17 @@ import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/server/supabase-server';
 
 type FeedbackBody = {
+  comment?: string;
   english_1?: string;
   theme?: string;
   word_id?: number;
   welsh_lc?: string;
 };
 
-function buildFeedbackEmailText(body: Required<Pick<FeedbackBody, 'english_1' | 'welsh_lc' | 'word_id'>> & { theme: string | null }, userId: string | null) {
+function buildFeedbackEmailText(
+  body: Required<Pick<FeedbackBody, 'english_1' | 'welsh_lc' | 'word_id'>> & { comment: string | null; theme: string | null },
+  userId: string | null,
+) {
   return [
     'CymruCards translation feedback',
     '',
@@ -16,12 +20,16 @@ function buildFeedbackEmailText(body: Required<Pick<FeedbackBody, 'english_1' | 
     `welsh_lc: ${body.welsh_lc}`,
     `english_1: ${body.english_1}`,
     `theme: ${body.theme ?? '(none)'}`,
+    `user_message: ${body.comment ?? '(none)'}`,
     `reported_by_user_id: ${userId ?? '(anonymous)'}`,
     `reported_at_utc: ${new Date().toISOString()}`,
   ].join('\n');
 }
 
-async function sendFeedbackEmail(body: Required<Pick<FeedbackBody, 'english_1' | 'welsh_lc' | 'word_id'>> & { theme: string | null }, userId: string | null) {
+async function sendFeedbackEmail(
+  body: Required<Pick<FeedbackBody, 'english_1' | 'welsh_lc' | 'word_id'>> & { comment: string | null; theme: string | null },
+  userId: string | null,
+) {
   const sendGridApiKey = process.env.SENDGRID_API_KEY?.trim();
   const fromEmail = process.env.FEEDBACK_EMAIL_FROM?.trim();
   const toEmail = process.env.FEEDBACK_EMAIL_TO?.trim() || 'cymru.cards.app@gmail.com';
@@ -69,6 +77,7 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabaseServer.auth.getUser();
   const payload = {
+    comment: body.comment?.trim() ? body.comment.trim() : null,
     english_1: body.english_1,
     theme: body.theme ?? null,
     welsh_lc: body.welsh_lc,

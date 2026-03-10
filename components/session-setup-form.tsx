@@ -10,6 +10,7 @@ import {
 } from '@/lib/active-flashcard-session';
 import { trackEvent } from '@/lib/analytics';
 import { readLocalStack, type StackedWord } from '@/lib/card-stack';
+import { readLocalSessionStats } from '@/lib/local-session-stats';
 import {
   DEFAULT_DURATION,
   DEFAULT_FRONT_LANGUAGE,
@@ -45,9 +46,11 @@ type SessionSetupFormProps = {
   initialStackWords?: StackedWord[];
   initialDuration?: DurationOption;
   initialFrontLanguage?: FrontLanguage;
+  initialRemovedWordIds?: number[];
   initialRarity?: RarityOption;
   initialThemes?: ThemeOption[];
   initialTypes: LinguisticTypeOption[];
+  isSignedIn?: boolean;
 };
 
 function getDurationSliderValue(duration: DurationOption) {
@@ -64,9 +67,11 @@ export function SessionSetupForm({
   initialStackWords = [],
   initialDuration = DEFAULT_DURATION,
   initialFrontLanguage = DEFAULT_FRONT_LANGUAGE,
+  initialRemovedWordIds = [],
   initialRarity = DEFAULT_RARITY,
   initialThemes = [...DEFAULT_THEME_OPTIONS],
   initialTypes,
+  isSignedIn = false,
 }: SessionSetupFormProps) {
   const [duration, setDuration] = useState<DurationOption>(initialDuration);
   const [frontLanguage, setFrontLanguage] = useState<FrontLanguage>(initialFrontLanguage);
@@ -74,6 +79,7 @@ export function SessionSetupForm({
   const [themes, setThemes] = useState<ThemeOption[]>(initialThemes);
   const [types, setTypes] = useState<LinguisticTypeOption[]>(initialTypes);
   const [stackWords, setStackWords] = useState<StackedWord[]>(initialStackWords);
+  const [removedWordIds, setRemovedWordIds] = useState<number[]>(initialRemovedWordIds);
   const [activeSession, setActiveSession] = useState<ActiveFlashcardSession | null>(null);
   const [pendingNavigation, setPendingNavigation] = useState<null | 'resume' | 'start'>(null);
   const router = useRouter();
@@ -97,7 +103,19 @@ export function SessionSetupForm({
     setTypes(nextStackWords.length === 0 ? nextTypes.filter((type) => type !== 'STACK') : nextTypes);
     setActiveSession(storedActiveSession);
     setStackWords(nextStackWords);
-  }, [initialStackWords, initialTypes]);
+    if (!isSignedIn) {
+      setRemovedWordIds(readLocalSessionStats().learnedWords.map((word) => word.id));
+    }
+  }, [initialStackWords, initialTypes, isSignedIn]);
+
+  useEffect(() => {
+    if (isSignedIn) {
+      setRemovedWordIds(initialRemovedWordIds);
+      return;
+    }
+
+    setRemovedWordIds(readLocalSessionStats().learnedWords.map((word) => word.id));
+  }, [initialRemovedWordIds, isSignedIn]);
 
   function toggleType(type: LinguisticTypeOption) {
     setTypes((currentTypes) => {
@@ -180,9 +198,14 @@ export function SessionSetupForm({
   }
 
   const coreTypes = getCoreSelectedTypes(types);
+  const removedWordIdSet = new Set(removedWordIds);
   const filteredWordIds = new Set(
     availableCards
       .filter((card) => {
+        if (removedWordIdSet.has(card.id)) {
+          return false;
+        }
+
         if (!coreTypes.includes(card.linguistic_type as Exclude<LinguisticTypeOption, 'STACK'>)) {
           return false;
         }
@@ -195,7 +218,7 @@ export function SessionSetupForm({
       })
       .map((card) => card.id),
   );
-  const stackIds = stackWords.map((word) => word.id);
+  const stackIds = stackWords.filter((word) => !removedWordIdSet.has(word.id)).map((word) => word.id);
 
   const availableCardCount = new Set([
     ...filteredWordIds,

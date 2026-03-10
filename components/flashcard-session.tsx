@@ -307,6 +307,7 @@ export function FlashcardSession({
   const [showPhoneticAid, setShowPhoneticAid] = useState(false);
   const [showFeedbackPrompt, setShowFeedbackPrompt] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
+  const [feedbackText, setFeedbackText] = useState('');
   const [isInStack, setIsInStack] = useState(false);
   const [completionHistory, setCompletionHistory] = useState<SessionHistoryPoint[]>([]);
   const [user, setUser] = useState<Pick<User, 'id'> | null>(initialUser);
@@ -440,6 +441,20 @@ export function FlashcardSession({
 
     setShowIntroOverlay(true);
   }, [currentCard]);
+
+  useEffect(() => {
+    if (!feedbackStatus) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setFeedbackStatus(null);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [feedbackStatus]);
 
   useEffect(() => {
     if (!currentCard || currentCard.kind !== 'word') {
@@ -977,6 +992,7 @@ export function FlashcardSession({
     try {
       const response = await fetch('/api/translation-feedback', {
         body: JSON.stringify({
+          comment: feedbackText.trim(),
           english_1: currentCard.word.english_1,
           theme: currentCard.word.themes[0] ?? null,
           welsh_lc: currentCard.word.welsh_lc,
@@ -988,7 +1004,7 @@ export function FlashcardSession({
         method: 'POST',
       });
 
-      const payload = (await response.json().catch(() => null)) as { error?: string; message_id?: string | null; provider_status?: number } | null;
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
         throw new Error(payload?.error ?? 'Unable to send feedback.');
@@ -998,11 +1014,8 @@ export function FlashcardSession({
         card_id: currentCard.word.id,
         card_theme: currentCard.word.themes[0] ?? 'none',
       });
-      setFeedbackStatus(
-        payload?.provider_status
-          ? `Translation query sent (provider status ${payload.provider_status}${payload.message_id ? `, id ${payload.message_id}` : ''}).`
-          : 'Translation query sent.',
-      );
+      setFeedbackStatus('Translation query sent');
+      setFeedbackText('');
       setShowFeedbackPrompt(false);
     } catch (error) {
       const message = getErrorMessage(error, 'Unable to send feedback.');
@@ -1294,7 +1307,7 @@ export function FlashcardSession({
 
         {isSaving ? <p className="text-sm text-slate-700">Saving progress…</p> : null}
         {saveError ? <p className="text-sm text-amber-800">{saveError}</p> : null}
-        {feedbackStatus ? <p className="text-sm text-emerald-700">{feedbackStatus}</p> : null}
+        {feedbackStatus ? <p className="text-center text-sm text-slate-900">{feedbackStatus}</p> : null}
       </section>
 
       {showIntroOverlay ? (
@@ -1430,10 +1443,19 @@ export function FlashcardSession({
             <p className="mt-3 text-sm leading-6 text-slate-700">
               If you think this translation is incorrect, you can flag it to the app&apos;s developer.
             </p>
+            <textarea
+              className="mt-4 min-h-28 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
+              onChange={(event) => setFeedbackText(event.target.value)}
+              placeholder="Add any detail you want to send with this report."
+              value={feedbackText}
+            />
             <div className="mt-6 flex gap-3">
               <button
                 className="flex-1 rounded-full border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900"
-                onClick={() => setShowFeedbackPrompt(false)}
+                onClick={() => {
+                  setFeedbackText('');
+                  setShowFeedbackPrompt(false);
+                }}
                 type="button"
               >
                 Cancel
@@ -1457,19 +1479,13 @@ export function FlashcardSession({
             className="w-full max-w-sm rounded-[2rem] border border-white/50 bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.22)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <h2 className="text-xl font-semibold text-slate-900">
-              <strong>Gwaith gwych - you&apos;ve unlocked a new badge!</strong>
-            </h2>
+            <h2 className="text-center text-xl font-semibold text-slate-900">Gwaith gwych! You&apos;ve reached a new level</h2>
             <div className="mt-5 flex justify-center">
               <div className="relative h-24 w-24">
                 <Image alt={unlockedLevel.name} className="object-contain" fill sizes="96px" src={unlockedLevel.glyph} />
               </div>
             </div>
-            <p className="mt-4 text-center text-sm leading-6 text-slate-700">
-              <span className="font-semibold">{unlockedLevel.name}</span>
-              {' - '}
-              {unlockedLevel.description}
-            </p>
+            <p className="mt-4 text-center text-sm leading-6 text-slate-700">{unlockedLevel.name}</p>
             <button
               className="mt-6 w-full rounded-full px-4 py-3 text-sm font-semibold text-white"
               onClick={() => setUnlockedLevel(null)}
