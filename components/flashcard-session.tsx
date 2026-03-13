@@ -216,9 +216,7 @@ function renderWordCard(
   onOpenFeedback?: () => void,
 ) {
   const faces = getCardFaces(word, frontLanguage);
-  const secondaryTranslations = [word.english_2, word.english_3]
-    .map((translation) => formatEnglishForFlashcard(word, translation))
-    .filter((translation): translation is string => Boolean(translation));
+  const secondaryTranslations = [word.english_2, word.english_3].filter((translation): translation is string => Boolean(translation?.trim()));
   const englishOnFront = frontLanguage === 'english';
   const cardMeta = `${word.linguistic_type} / ${(word.themes[0] ?? '').replaceAll('_', ' ').toUpperCase()}`;
   const frontFaceClassName = frontLanguage === 'welsh' ? 'flashcard-face flashcard-face-welsh' : 'flashcard-face';
