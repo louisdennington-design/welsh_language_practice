@@ -124,16 +124,30 @@ function writeLocalFlag(key: string) {
   window.localStorage.setItem(key, 'true');
 }
 
+function formatEnglishForFlashcard(word: SessionWord, translation: string | null | undefined) {
+  const normalizedTranslation = translation?.trim() ?? '';
+
+  if (!normalizedTranslation) {
+    return '';
+  }
+
+  if (word.linguistic_type !== 'VERB' || normalizedTranslation.toLowerCase().startsWith('to ')) {
+    return normalizedTranslation;
+  }
+
+  return `to ${normalizedTranslation}`;
+}
+
 function getCardFaces(word: SessionWord, frontLanguage: FrontLanguage) {
   if (frontLanguage === 'english') {
     return {
       backText: word.welsh_lc ?? '',
-      frontText: word.english_1 ?? '',
+      frontText: formatEnglishForFlashcard(word, word.english_1),
     };
   }
 
   return {
-    backText: word.english_1 ?? '',
+    backText: formatEnglishForFlashcard(word, word.english_1),
     frontText: word.welsh_lc ?? '',
   };
 }
@@ -202,7 +216,9 @@ function renderWordCard(
   onOpenFeedback?: () => void,
 ) {
   const faces = getCardFaces(word, frontLanguage);
-  const secondaryTranslations = [word.english_2, word.english_3].filter((translation): translation is string => Boolean(translation));
+  const secondaryTranslations = [word.english_2, word.english_3]
+    .map((translation) => formatEnglishForFlashcard(word, translation))
+    .filter((translation): translation is string => Boolean(translation));
   const englishOnFront = frontLanguage === 'english';
   const cardMeta = `${word.linguistic_type} / ${(word.themes[0] ?? '').replaceAll('_', ' ').toUpperCase()}`;
   const frontFaceClassName = frontLanguage === 'welsh' ? 'flashcard-face flashcard-face-welsh' : 'flashcard-face';
