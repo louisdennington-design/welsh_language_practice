@@ -86,6 +86,20 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !userEmail) {
+      return;
+    }
+
+    const passwordResetSuccess = window.sessionStorage.getItem('cymrucards-password-reset-success');
+
+    if (passwordResetSuccess === '1') {
+      setStatusMessage('Password changed successfully.');
+      setErrorMessage(null);
+      window.sessionStorage.removeItem('cymrucards-password-reset-success');
+    }
+  }, [userEmail]);
+
   async function handleResetPassword() {
     if (!supabase) {
       throw new Error('Supabase auth is not configured.');

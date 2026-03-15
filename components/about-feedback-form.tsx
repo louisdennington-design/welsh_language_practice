@@ -37,7 +37,7 @@ export function AboutFeedbackForm() {
       }
 
       setFeedback('');
-      setStatusMessage('Feedback sent.');
+      setStatusMessage('Thank you for your feedback.');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to send feedback.');
     } finally {

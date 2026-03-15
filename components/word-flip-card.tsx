@@ -16,6 +16,7 @@ type WordFlipCardProps = {
   frontLanguage: FrontLanguage;
   isFlipped: boolean;
   showQueryButton?: boolean;
+  showSecondaryTranslations?: boolean;
   word: WordFlipCardWord;
   onOpenFeedback?: () => void;
 };
@@ -53,6 +54,7 @@ export function WordFlipCard({
   frontLanguage,
   isFlipped,
   showQueryButton = false,
+  showSecondaryTranslations = true,
   word,
   onOpenFeedback,
 }: WordFlipCardProps) {
@@ -87,7 +89,7 @@ export function WordFlipCard({
             </button>
           ) : null}
           <p className={`text-center font-semibold leading-tight tracking-tight text-slate-900 ${compact ? 'text-2xl' : 'text-4xl'}`}>{faces.frontText}</p>
-          {englishOnFront && secondaryTranslations.length > 0 ? (
+          {showSecondaryTranslations && englishOnFront && secondaryTranslations.length > 0 ? (
             <div className={`space-y-1 text-center text-slate-400 ${compact ? 'mt-2 text-sm' : 'mt-4 text-lg'}`}>
               {secondaryTranslations.map((translation) => (
                 <p key={translation}>{translation}</p>
@@ -111,7 +113,7 @@ export function WordFlipCard({
             </button>
           ) : null}
           <p className={`text-center font-semibold leading-tight tracking-tight text-slate-900 ${compact ? 'text-2xl' : 'text-4xl'}`}>{faces.backText}</p>
-          {!englishOnFront && secondaryTranslations.length > 0 ? (
+          {showSecondaryTranslations && !englishOnFront && secondaryTranslations.length > 0 ? (
             <div className={`space-y-1 text-center text-slate-400 ${compact ? 'mt-2 text-sm' : 'mt-4 text-lg'}`}>
               {secondaryTranslations.map((translation) => (
                 <p key={translation}>{translation}</p>

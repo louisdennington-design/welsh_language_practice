@@ -8,7 +8,7 @@ export function RecoveryRedirect() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (typeof window === 'undefined' || pathname === '/auth/reset-password') {
+    if (typeof window === 'undefined' || pathname === '/auth/reset-password' || pathname === '/auth/callback') {
       return;
     }
 
@@ -16,8 +16,9 @@ export function RecoveryRedirect() {
     const hashType = hashParams.get('type');
     const hasRecoveryTokens = hashParams.get('access_token') && hashParams.get('refresh_token');
     const queryType = searchParams.get('type');
+    const authCode = searchParams.get('code');
 
-    if ((hashType === 'recovery' && hasRecoveryTokens) || queryType === 'recovery') {
+    if ((hashType === 'recovery' && hasRecoveryTokens) || queryType === 'recovery' || authCode) {
       const nextPath = pathname.startsWith('/') ? pathname : '/flashcards';
       const nextQuery = searchParams.toString();
       const nextValue = nextQuery ? `${nextPath}?${nextQuery}` : nextPath;

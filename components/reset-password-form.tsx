@@ -14,6 +14,7 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createSupabaseBrowserClientOrNull();
@@ -89,6 +90,9 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
 
       setStatusMessage('Password updated. Redirecting…');
       setPassword('');
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('cymrucards-password-reset-success', '1');
+      }
       router.push(nextPath);
       router.refresh();
     } catch (error) {
@@ -101,7 +105,7 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5">
-      <h1 className="text-xl font-semibold text-slate-900">Set a new password</h1>
+      <h1 className="text-xl font-semibold text-slate-900">Password reset</h1>
       <p className="mt-2 text-sm text-slate-600">
         Choose a new password for your account, then you can sign in normally on any device.
       </p>
@@ -117,16 +121,26 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
             id="new-password"
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Choose a new password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={password}
           />
+          <label className="flex items-center gap-2 text-sm text-slate-700" htmlFor="show-password">
+            <input
+              checked={showPassword}
+              className="h-4 w-4 rounded border-slate-300"
+              id="show-password"
+              onChange={(event) => setShowPassword(event.target.checked)}
+              type="checkbox"
+            />
+            Show password
+          </label>
           <button
             className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
             disabled={isLoading || password.trim() === ''}
             style={{ backgroundColor: isLoading ? '#96A99C' : '#2C5439' }}
             type="submit"
           >
-            Save new password
+            Submit
           </button>
         </form>
       ) : null}

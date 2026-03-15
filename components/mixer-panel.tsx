@@ -50,7 +50,7 @@ export function MixerPanel({ words }: MixerPanelProps) {
   const [slots, setSlots] = useState<MixerSlot[]>([]);
   const [sliderOffset, setSliderOffset] = useState(0);
   const [isDraggingSlider, setIsDraggingSlider] = useState(false);
-  const sliderStartY = useRef<number | null>(null);
+  const sliderStartX = useRef<number | null>(null);
 
   const groupedWords = useMemo(() => {
     return {
@@ -98,30 +98,30 @@ export function MixerPanel({ words }: MixerPanelProps) {
 
   function releaseSlider(finalOffset: number) {
     setIsDraggingSlider(false);
-    sliderStartY.current = null;
+    sliderStartX.current = null;
     setSliderOffset(0);
 
-    if (finalOffset > 84) {
+    if (finalOffset > 96) {
       reshuffleWords();
     }
   }
 
   function handleSliderPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
-    sliderStartY.current = event.clientY;
+    sliderStartX.current = event.clientX;
     setIsDraggingSlider(true);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function handleSliderPointerMove(event: React.PointerEvent<HTMLButtonElement>) {
-    if (sliderStartY.current === null) {
+    if (sliderStartX.current === null) {
       return;
     }
 
-    setSliderOffset(Math.max(0, Math.min(196, event.clientY - sliderStartY.current)));
+    setSliderOffset(Math.max(0, Math.min(220, event.clientX - sliderStartX.current)));
   }
 
   function handleSliderPointerEnd(event: React.PointerEvent<HTMLButtonElement>) {
-    if (sliderStartY.current === null) {
+    if (sliderStartX.current === null) {
       return;
     }
 
@@ -134,7 +134,7 @@ export function MixerPanel({ words }: MixerPanelProps) {
       <section className="rounded-[2rem] border border-white/50 bg-white/84 p-5 shadow-[0_22px_50px_rgba(26,67,46,0.12)] backdrop-blur">
         <p className="text-sm leading-6 text-slate-700">
           Practice making a sentence with a combination of three words from your stack. Making sentence patterns with words you are learning will really
-          help to bed them into your vocabulary.
+          help to bed them into your vocabulary. Pull the slider to reshuffle the words.
         </p>
       </section>
 
@@ -160,13 +160,29 @@ export function MixerPanel({ words }: MixerPanelProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-[minmax(0,1fr)_2.9rem] gap-3">
+        <div className="space-y-3">
+          <div className="mixer-slider-track-horizontal rounded-[1.5rem] border border-[#d5dfbb] bg-white/90 p-1 shadow-sm">
+            <p className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-xs font-medium text-slate-400">Pull to shuffle</p>
+            <button
+              aria-label="Shuffle mixer cards"
+              className={`mixer-slider-knob-horizontal ${isDraggingSlider ? 'mixer-slider-knob-dragging' : ''}`}
+              onPointerCancel={handleSliderPointerEnd}
+              onPointerDown={handleSliderPointerDown}
+              onPointerMove={handleSliderPointerMove}
+              onPointerUp={handleSliderPointerEnd}
+              style={{ transform: `translateX(${sliderOffset}px)` }}
+              type="button"
+            >
+              <span className="text-lg leading-none text-white">|||</span>
+            </button>
+          </div>
+
           <div className="space-y-3">
             {slots.map((slot) => (
               <div key={slot.type}>
                 {slot.word ? (
                   <button className="block w-full text-left" onClick={() => toggleCard(slot.type, true)} type="button">
-                    <WordFlipCard compact frontLanguage={frontLanguage} isFlipped={flippedState[slot.type]} word={slot.word} />
+                    <WordFlipCard compact frontLanguage={frontLanguage} isFlipped={flippedState[slot.type]} showSecondaryTranslations={false} word={slot.word} />
                   </button>
                 ) : (
                   <div className="flashcard-card flashcard-card-compact rounded-[1.5rem] border border-white/60 bg-white shadow-[0_24px_40px_rgba(29,78,54,0.16)]">
@@ -178,21 +194,6 @@ export function MixerPanel({ words }: MixerPanelProps) {
                 )}
               </div>
             ))}
-          </div>
-
-          <div className="mixer-slider-track rounded-[1.5rem] border border-[#d5dfbb] bg-white/90 p-1 shadow-sm">
-            <button
-              aria-label="Shuffle mixer cards"
-              className={`mixer-slider-knob ${isDraggingSlider ? 'mixer-slider-knob-dragging' : ''}`}
-              onPointerCancel={handleSliderPointerEnd}
-              onPointerDown={handleSliderPointerDown}
-              onPointerMove={handleSliderPointerMove}
-              onPointerUp={handleSliderPointerEnd}
-              style={{ transform: `translateY(${sliderOffset}px)` }}
-              type="button"
-            >
-              <span className="text-lg leading-none text-white">|||</span>
-            </button>
           </div>
         </div>
       </section>

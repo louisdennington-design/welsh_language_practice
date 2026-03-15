@@ -340,6 +340,12 @@ body::before {
   position: relative;
 }
 
+.mixer-slider-track-horizontal {
+  height: 4.8rem;
+  position: relative;
+  touch-action: pan-y;
+}
+
 .mixer-slider-knob {
   align-items: center;
   background: linear-gradient(180deg, #2c5439 0%, #3b6b4a 100%);
@@ -354,6 +360,22 @@ body::before {
   top: 0.2rem;
   transition: transform 220ms ease;
   width: calc(100% - 0.4rem);
+}
+
+.mixer-slider-knob-horizontal {
+  align-items: center;
+  background: linear-gradient(180deg, #2c5439 0%, #3b6b4a 100%);
+  border: 0;
+  border-radius: 1.2rem;
+  box-shadow: 0 14px 26px rgba(20, 40, 22, 0.22);
+  display: flex;
+  height: calc(100% - 0.4rem);
+  justify-content: center;
+  left: 0.2rem;
+  position: absolute;
+  top: 0.2rem;
+  transition: transform 220ms ease;
+  width: 5.2rem;
 }
 
 .mixer-slider-knob-dragging {
