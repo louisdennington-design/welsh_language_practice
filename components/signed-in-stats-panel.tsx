@@ -122,14 +122,6 @@ export function SignedInStatsPanel({
   return (
     <div className="space-y-5">
       <section className="grid grid-cols-2 gap-3 rounded-[2rem] border border-white/50 bg-white/84 p-5 shadow-[0_22px_50px_rgba(26,67,46,0.12)] backdrop-blur">
-        <div className="rounded-[1.5rem] bg-[#eef4de] p-4">
-          <p className="text-sm text-slate-500">Current streak</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{currentStreak}</p>
-        </div>
-        <div className="rounded-[1.5rem] bg-[#f2f5e5] p-4">
-          <p className="text-sm text-slate-500">Longest streak</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{longestStreak}</p>
-        </div>
         <div className="rounded-[1.5rem] bg-[#edf1da] p-4">
           <p className="text-sm text-slate-500">Cards reviewed</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900">{totalReviewed}</p>
@@ -149,6 +141,16 @@ export function SignedInStatsPanel({
       <SessionHistoryGraph history={sessionHistory} />
 
       <LearnedWordGroups onReinstate={handleReinstate} words={learnedWords} />
+      <section className="grid grid-cols-2 gap-3 rounded-[2rem] border border-white/50 bg-white/84 p-5 shadow-[0_22px_50px_rgba(26,67,46,0.12)] backdrop-blur">
+        <div className="rounded-[1.5rem] bg-[#eef4de] p-4">
+          <p className="text-sm text-slate-500">Current streak</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900">{currentStreak}</p>
+        </div>
+        <div className="rounded-[1.5rem] bg-[#f2f5e5] p-4">
+          <p className="text-sm text-slate-500">Longest streak</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900">{longestStreak}</p>
+        </div>
+      </section>
       {saveError ? <p className="text-sm text-amber-800">{saveError}</p> : null}
     </div>
   );

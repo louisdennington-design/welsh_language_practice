@@ -10,6 +10,7 @@ type AppShellProps = {
 
 const NAV_ITEMS = [
   { href: '/flashcards', label: 'Flashcards' },
+  { href: '/mixer', label: 'Mixer' },
   { href: '/stats', label: 'Stats' },
   { href: '/learning-tips', label: 'Tips' },
   { href: '/about', label: 'About' },

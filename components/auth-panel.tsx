@@ -13,6 +13,16 @@ type AuthPanelProps = {
   redirectPath: string;
 };
 
+function getReadableAuthError(message: string, mode: AuthMode) {
+  const normalizedMessage = message.toLowerCase();
+
+  if (mode === 'sign-in' && (normalizedMessage.includes('invalid login credentials') || normalizedMessage.includes('invalid_credentials'))) {
+    return "Incorrect password. Select reset password if you've forgotten it.";
+  }
+
+  return message;
+}
+
 function getPanelCopy(mode: AuthMode) {
   if (mode === 'sign-up') {
     return {
@@ -164,7 +174,7 @@ export function AuthPanel({ initialUserEmail, redirectPath }: AuthPanelProps) {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to complete authentication.';
-      setErrorMessage(message);
+      setErrorMessage(getReadableAuthError(message, mode));
       trackEvent('auth_error', { auth_mode: mode });
     } finally {
       setIsLoading(false);

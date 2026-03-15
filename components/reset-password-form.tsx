@@ -25,6 +25,8 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
     }
     const client = supabase;
 
+    const searchParams = new URLSearchParams(window.location.search);
+    const authCode = searchParams.get('code');
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const accessToken = hashParams.get('access_token');
     const refreshToken = hashParams.get('refresh_token');
@@ -32,7 +34,9 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
     async function prepareRecoverySession() {
       let error: { message: string } | null = null;
 
-      if (accessToken && refreshToken) {
+      if (authCode) {
+        ({ error } = await client.auth.exchangeCodeForSession(authCode));
+      } else if (accessToken && refreshToken) {
         ({ error } = await client.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
@@ -53,7 +57,11 @@ export function ResetPasswordForm({ nextPath }: ResetPasswordFormProps) {
       }
 
       setIsReady(true);
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      const nextParams = new URLSearchParams(window.location.search);
+      nextParams.delete('code');
+      nextParams.delete('type');
+      const nextQuery = nextParams.toString();
+      window.history.replaceState({}, document.title, window.location.pathname + (nextQuery ? `?${nextQuery}` : ''));
     }
 
     void prepareRecoverySession();

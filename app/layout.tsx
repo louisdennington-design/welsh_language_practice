@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { GoogleAnalytics } from '@/components/google-analytics';
 import { PwaRegistration } from '@/components/pwa-registration';
+import { RecoveryRedirect } from '@/components/recovery-redirect';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         />
         <Suspense fallback={null}>
           <GoogleAnalytics measurementId={gaMeasurementId} />
+          <RecoveryRedirect />
         </Suspense>
         <PwaRegistration />
         <AppShell>{children}</AppShell>

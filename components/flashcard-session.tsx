@@ -17,6 +17,7 @@ import { readLocalSessionStats, recordLocalAnswer, recordLocalSessionCompletion 
 import { getCurrentLevel } from '@/lib/progression';
 import { getRotatingFacts } from '@/lib/welsh-facts';
 import type { Database } from '@/types/database';
+import { WordFlipCard } from '@/components/word-flip-card';
 
 type SessionWord = Pick<
   Database['public']['Tables']['lexicon']['Row'],
@@ -124,34 +125,6 @@ function writeLocalFlag(key: string) {
   window.localStorage.setItem(key, 'true');
 }
 
-function formatEnglishForFlashcard(word: SessionWord, translation: string | null | undefined) {
-  const normalizedTranslation = translation?.trim() ?? '';
-
-  if (!normalizedTranslation) {
-    return '';
-  }
-
-  if (word.linguistic_type !== 'VERB' || normalizedTranslation.toLowerCase().startsWith('to ')) {
-    return normalizedTranslation;
-  }
-
-  return `to ${normalizedTranslation}`;
-}
-
-function getCardFaces(word: SessionWord, frontLanguage: FrontLanguage) {
-  if (frontLanguage === 'english') {
-    return {
-      backText: word.welsh_lc ?? '',
-      frontText: formatEnglishForFlashcard(word, word.english_1),
-    };
-  }
-
-  return {
-    backText: formatEnglishForFlashcard(word, word.english_1),
-    frontText: word.welsh_lc ?? '',
-  };
-}
-
 function buildDisplayCards(words: SessionWord[]) {
   const cards: DisplayCard[] = [];
   const factSlotCount = words.length >= 10 ? Math.max(1, Math.floor((words.length - 1) / 14)) : 0;
@@ -215,59 +188,7 @@ function renderWordCard(
   isFlipped: boolean,
   onOpenFeedback?: () => void,
 ) {
-  const faces = getCardFaces(word, frontLanguage);
-  const secondaryTranslations = [word.english_2, word.english_3].filter((translation): translation is string => Boolean(translation?.trim()));
-  const englishOnFront = frontLanguage === 'english';
-  const cardMeta = `${word.linguistic_type} / ${(word.themes[0] ?? '').replaceAll('_', ' ').toUpperCase()}`;
-  const frontFaceClassName = frontLanguage === 'welsh' ? 'flashcard-face flashcard-face-welsh' : 'flashcard-face';
-  const backFaceClassName = frontLanguage === 'welsh' ? 'flashcard-face flashcard-face-back' : 'flashcard-face flashcard-face-back flashcard-face-welsh';
-
-  return (
-    <div className="flashcard-card rounded-[2rem] border border-white/60 bg-white shadow-[0_40px_70px_rgba(29,78,54,0.16)]">
-      <div className="flashcard-inner" style={{ transform: `rotateY(${isFlipped ? 180 : 0}deg)` }}>
-        <div className={frontFaceClassName}>
-          <p className="absolute left-5 top-5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-400">{cardMeta}</p>
-          <button
-            aria-label="Query this translation"
-            className="absolute bottom-5 left-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-500"
-            data-card-control="true"
-            onClick={onOpenFeedback}
-            type="button"
-          >
-            ?
-          </button>
-          <p className="text-center text-4xl font-semibold leading-tight tracking-tight text-slate-900">{faces.frontText}</p>
-          {englishOnFront && secondaryTranslations.length > 0 ? (
-            <div className="mt-4 space-y-1 text-center text-lg text-slate-400">
-              {secondaryTranslations.map((translation) => (
-                <p key={translation}>{translation}</p>
-              ))}
-            </div>
-          ) : null}
-        </div>
-        <div className={backFaceClassName}>
-          <p className="absolute left-5 top-5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-400">{cardMeta}</p>
-          <button
-            aria-label="Query this translation"
-            className="absolute bottom-5 left-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-500"
-            data-card-control="true"
-            onClick={onOpenFeedback}
-            type="button"
-          >
-            ?
-          </button>
-          <p className="text-center text-4xl font-semibold leading-tight tracking-tight text-slate-900">{faces.backText}</p>
-          {!englishOnFront && secondaryTranslations.length > 0 ? (
-            <div className="mt-4 space-y-1 text-center text-lg text-slate-400">
-              {secondaryTranslations.map((translation) => (
-                <p key={translation}>{translation}</p>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
+  return <WordFlipCard frontLanguage={frontLanguage} isFlipped={isFlipped} onOpenFeedback={onOpenFeedback} showQueryButton word={word} />;
 }
 
 function renderStaticCard(card: DisplayCard, frontLanguage: FrontLanguage, isFlipped = false, onOpenFeedback?: () => void) {
@@ -1216,11 +1137,11 @@ export function FlashcardSession({
   return (
     <>
       <section className="space-y-4">
-        <div className="relative flex items-center justify-between rounded-[1.75rem] border border-white/45 bg-white/66 px-4 py-3 shadow-[0_16px_40px_rgba(26,67,46,0.1)] backdrop-blur">
-          <div className="flex items-center gap-2">
+        <div className="relative flex items-center justify-between rounded-[1.5rem] border border-white/45 bg-white/66 px-3 py-2.5 shadow-[0_16px_40px_rgba(26,67,46,0.1)] backdrop-blur">
+          <div className="flex max-w-[42%] items-center gap-1.5">
             <Link
               aria-label="Back to settings"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#c7d3a7] bg-white/90 shadow-sm"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#c7d3a7] bg-white/90 shadow-sm"
               href="/flashcards"
             >
               <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -1228,19 +1149,19 @@ export function FlashcardSession({
               </svg>
             </Link>
             <button
-              className="rounded-full border border-[#c7d3a7] bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm"
+              className="rounded-full border border-[#c7d3a7] bg-white/90 px-2.5 py-2 text-[0.68rem] font-semibold text-slate-700 shadow-sm"
               onClick={openIntroOverlay}
               type="button"
             >
               How this works
             </button>
           </div>
-          <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-center text-sm font-medium text-slate-700">
+          <p className="pointer-events-none absolute left-1/2 max-w-[34%] -translate-x-1/2 text-center text-xs font-medium text-slate-700 sm:text-sm">
             {counterProgress} of {words.length}
           </p>
-          <div className="ml-auto rounded-full bg-white/90 p-1 shadow-sm">
+          <div className="ml-auto shrink-0 rounded-full bg-white/90 p-1 shadow-sm">
             <button
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${frontLanguage === 'welsh' ? 'text-white' : 'text-slate-600'}`}
+              className={`rounded-full px-2.5 py-1.5 text-[0.68rem] font-semibold sm:px-3 sm:text-xs ${frontLanguage === 'welsh' ? 'text-white' : 'text-slate-600'}`}
               onClick={() => setFrontLanguage('welsh')}
               style={frontLanguage === 'welsh' ? { backgroundColor: '#2C5439' } : undefined}
               type="button"
@@ -1248,7 +1169,7 @@ export function FlashcardSession({
               Welsh
             </button>
             <button
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${frontLanguage === 'english' ? 'text-white' : 'text-slate-600'}`}
+              className={`rounded-full px-2.5 py-1.5 text-[0.68rem] font-semibold sm:px-3 sm:text-xs ${frontLanguage === 'english' ? 'text-white' : 'text-slate-600'}`}
               onClick={() => setFrontLanguage('english')}
               style={frontLanguage === 'english' ? { backgroundColor: '#2C5439' } : undefined}
               type="button"
@@ -1307,7 +1228,7 @@ export function FlashcardSession({
               style={{ backgroundColor: '#2C5439' }}
               type="button"
             >
-              Stop seeing this card
+              I&apos;ve learned this word
             </button>
             <button
               className={`rounded-full border px-4 py-3 text-sm font-semibold shadow-[0_14px_34px_rgba(20,40,22,0.12)] ${
@@ -1318,7 +1239,7 @@ export function FlashcardSession({
               style={isInStack ? { backgroundColor: '#2C5439', borderColor: '#2C5439' } : { borderColor: '#d5dfbb' }}
               type="button"
             >
-              {isInStack ? 'Remove from stack' : 'Add to my stack'}
+              {isInStack ? 'Remove from my stack' : 'Add to my stack'}
             </button>
             <button
               aria-label="Show phonetic aid"
